@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/opt/software/anaconda/python-3.10.9/bin/python
 
 """
 Numerical evaluation of pi using midpoint-rule quadrature.
