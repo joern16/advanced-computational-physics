@@ -100,6 +100,7 @@ if __name__ == "__main__":
                     plt.figure(figsize=(10, 6)) 
                     plt.semilogx(N_values, serial_results, marker='o', label='Serial', color='blue')
                     plt.semilogx(N_values, parallel_results, marker='o', label='Parallel', color='red')
+                    plt.axhline(y=np.pi, color='green', linestyle='--', label='Actual π Value')
                     plt.xlabel('Number of Points (N)')
                     plt.ylabel('Integration Result')
                     plt.title('Comparison of Serial and Parallel Integration Results')
