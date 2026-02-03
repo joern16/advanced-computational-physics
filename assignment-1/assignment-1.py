@@ -19,8 +19,10 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("-N", type=int, default=1000000, help="Number of points to sample at")
     parser.add_argument("-p", "--parallel", action="store_true", help="Use parallel computation")
-    parser.add_argument("-c", "--compare", action="store_true", help="Compare serial and parallel results for different N values")
-    parser.add_argument("-vc", "--visualize", action="store_true", help="Visualize the comparison results")
+    parser.add_argument("-c", "--compare", action="store_true"
+                        , help="Compare serial and parallel results for different N values")
+    parser.add_argument("-vc", "--visualize", action="store_true"
+                        , help="Visualize the comparison results")
 
     return parser.parse_args()
 
@@ -55,9 +57,8 @@ def parallel_integration(N):
 
     if rank == 0:
         return total_integral
-    else:
-        return None
     
+    return None
 
 
 if __name__ == "__main__":
@@ -83,32 +84,37 @@ if __name__ == "__main__":
             parallel_results.append(parallel_integration(N))
             time_results_parallel.append(time.time() - start_time)
 
-            # Output results or visualize
-            if MPI.COMM_WORLD.Get_rank() == 0:
-                if args.visualize:
-                    # Visualization of time
-                    plt.figure(figsize=(10, 6))
-                    plt.loglog(N_values, time_results_serial, marker='x', label='Serial', color='blue')
-                    plt.loglog(N_values, time_results_parallel, marker='x', label='Parallel', color='red')
-                    plt.xlabel('Number of Points (N)')
-                    plt.ylabel('Computational Time (seconds)')
-                    plt.title('Comparison of Serial and Parallel Integration Times')
-                    plt.legend()
-                    plt.show()
+        # Output results or visualize
+        if MPI.COMM_WORLD.Get_rank() == 0:
+            if args.visualize:
+                """
+                # Visualization of time
+                plt.figure(figsize=(10, 6))
+                plt.loglog(N_values, time_results_serial, marker='x'
+                           , label='Serial', color='blue')
+                plt.loglog(N_values, time_results_parallel, marker='x'
+                           , label='Parallel', color='red')
+                plt.xlabel('Number of Points (N)')
+                plt.ylabel('Computational Time (seconds)')
+                plt.title('Comparison of Serial and Parallel Integration Times')
+                plt.legend()
+                plt.show()
 
-                    # Visualization of results
-                    plt.figure(figsize=(10, 6)) 
-                    plt.semilogx(N_values, serial_results, marker='o', label='Serial', color='blue')
-                    plt.semilogx(N_values, parallel_results, marker='o', label='Parallel', color='red')
-                    plt.axhline(y=np.pi, color='green', linestyle='--', label='Actual π Value')
-                    plt.xlabel('Number of Points (N)')
-                    plt.ylabel('Integration Result')
-                    plt.title('Comparison of Serial and Parallel Integration Results')
-                    plt.legend()
-                    plt.show()
-                else:
-                    for i in range(len(N_values)):
-                        print(f"N={N_values[i]}: Serial Time={time_results_serial[i]:.6f}s, Parallel Time={time_results_parallel[i]:.6f}s")
+                # Visualization of results
+                plt.figure(figsize=(10, 6))
+                plt.semilogx(N_values, serial_results, marker='o', label='Serial', color='blue')
+                plt.semilogx(N_values, parallel_results, marker='o', label='Parallel', color='red')
+                plt.axhline(y=np.pi, color='green', linestyle='--', label='Actual π Value')
+                plt.xlabel('Number of Points (N)')
+                plt.ylabel('Integration Result')
+                plt.title('Comparison of Serial and Parallel Integration Results')
+                plt.legend()
+                plt.show()
+                """
+
+            else:
+                for i in range(len(N_values)):
+                    print(f"N={N_values[i]}: Serial Time={time_results_serial[i]:.6f}s, Parallel Time={time_results_parallel[i]:.6f}s")
 
 
     # Single run: either serial or parallel
@@ -123,7 +129,7 @@ if __name__ == "__main__":
         else:
             start_time = time.time()
             integral = parallel_integration(N)
-            end_time = time.time() 
+            end_time = time.time()
             if MPI.COMM_WORLD.Get_rank() == 0:
                 print(f"Parallel integration result for N={N}: {integral}")
                 print(f"Time taken: {end_time - start_time} seconds")
