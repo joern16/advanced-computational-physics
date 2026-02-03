@@ -49,7 +49,7 @@ def parallel_integration(N):
     start = rank * block_size
     stop = start + block_size if rank != size - 1 else N
 
-    local_integral = serial_integration(start, stop, block_size)
+    local_integral = serial_integration(start, stop, N)
 
     total_integral = comm.reduce(local_integral, op=MPI.SUM, root=0)
 
