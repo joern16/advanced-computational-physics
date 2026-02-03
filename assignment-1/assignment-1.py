@@ -87,7 +87,6 @@ if __name__ == "__main__":
         # Output results or visualize
         if MPI.COMM_WORLD.Get_rank() == 0:
             if args.visualize:
-                """
                 # Visualization of time
                 plt.figure(figsize=(10, 6))
                 plt.loglog(N_values, time_results_serial, marker='x'
@@ -110,7 +109,6 @@ if __name__ == "__main__":
                 plt.title('Comparison of Serial and Parallel Integration Results')
                 plt.legend()
                 plt.show()
-                """
 
             else:
                 for i in range(len(N_values)):
