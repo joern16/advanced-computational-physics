@@ -34,4 +34,4 @@
 
 module load mpi
 
-perf stat -e cycles,instructions,cache-misses mpirun -np 16 ./assignment-1.py
+perf stat -e cycles,instructions,cache-misses mpirun -np 16 ./assignment-1.py --parallel
