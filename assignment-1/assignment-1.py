@@ -25,7 +25,7 @@ def parse_arguments():
                         , help="Compare serial and parallel results for different N values")
     parser.add_argument("-v", "--visualize", action="store_true"
                         , help="Visualize the comparison results")
-    
+
     return parser.parse_args(), parser
 
 
@@ -59,7 +59,7 @@ def parallel_integration(N):
 
     if rank == 0:
         return total_integral
-    
+
     return None
 
 
@@ -121,7 +121,11 @@ if __name__ == "__main__":
 
             else:
                 for i in range(len(N_values)):
-                    print(f"N={N_values[i]}: Serial Time={time_results_serial[i]:.6f}s, Parallel Time={time_results_parallel[i]:.6f}s")
+                    print(
+                        f"N={N_values[i]}: "
+                        f"Serial Time={time_results_serial[i]:.6f}s, "
+                        f"Parallel Time={time_results_parallel[i]:.6f}s"
+                    )
 
 
     # Single run: either serial or parallel
