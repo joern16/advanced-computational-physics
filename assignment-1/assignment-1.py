@@ -17,13 +17,13 @@ import matplotlib.pyplot as plt
 
 def parse_arguments():
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("-h", "--help", action="store_true")
     parser.add_argument("-N", type=int, default=1000000, help="Number of points to sample at")
     parser.add_argument("-p", "--parallel", action="store_true", help="Use parallel computation")
     parser.add_argument("-c", "--compare", action="store_true"
                         , help="Compare serial and parallel results for different N values")
-    parser.add_argument("-vc", "--visualize", action="store_true"
+    parser.add_argument("-v", "--visualize", action="store_true"
                         , help="Visualize the comparison results")
     
     return parser.parse_args(), parser
