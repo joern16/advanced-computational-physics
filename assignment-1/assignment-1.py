@@ -7,6 +7,7 @@ License: MIT
 """
 
 import time
+import sys
 import argparse
 import numpy as np
 from mpi4py import MPI
@@ -17,14 +18,15 @@ import matplotlib.pyplot as plt
 def parse_arguments():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser()
+    parser.add_argument("-h", "--help", action="store_true")
     parser.add_argument("-N", type=int, default=1000000, help="Number of points to sample at")
     parser.add_argument("-p", "--parallel", action="store_true", help="Use parallel computation")
     parser.add_argument("-c", "--compare", action="store_true"
                         , help="Compare serial and parallel results for different N values")
     parser.add_argument("-vc", "--visualize", action="store_true"
                         , help="Visualize the comparison results")
-
-    return parser.parse_args()
+    
+    return parser.parse_args(), parser
 
 
 def integrant(x):
@@ -62,8 +64,14 @@ def parallel_integration(N):
 
 
 if __name__ == "__main__":
-    args = parse_arguments()
+    args, parser = parse_arguments()
     N = args.N
+    rank = MPI.COMM_WORLD.Get_rank()
+
+    # Only print help once
+    if args.help and rank == 0:
+        parser.print_help()
+        sys.exit(0)
 
     # Compare serial and parallel implementations
     if args.compare or args.visualize:
@@ -76,16 +84,17 @@ if __name__ == "__main__":
         time_results_parallel = []
 
         for N in N_values:
-            start_time = time.time()
-            serial_results.append(serial_integration(0, N, N))
-            time_results_serial.append(time.time() - start_time)
+            if rank == 0:
+                start_time = time.time()
+                serial_results.append(serial_integration(0, N, N))
+                time_results_serial.append(time.time() - start_time)
 
             start_time = time.time()
             parallel_results.append(parallel_integration(N))
             time_results_parallel.append(time.time() - start_time)
 
         # Output results or visualize
-        if MPI.COMM_WORLD.Get_rank() == 0:
+        if rank == 0:
             if args.visualize:
                 # Visualization of time
                 plt.figure(figsize=(10, 6))
@@ -118,16 +127,16 @@ if __name__ == "__main__":
     # Single run: either serial or parallel
     else:
         if not args.parallel:
-            if MPI.COMM_WORLD.Get_rank() == 0:
+            if rank == 0:
                 start_time = time.time()
                 integral = serial_integration(0, N, N)
                 end_time = time.time()
                 print(f"Serial integration result: {integral}")
-            print(f"Time taken: {end_time - start_time} seconds")
+                print(f"Time taken: {end_time - start_time} seconds")
         else:
             start_time = time.time()
             integral = parallel_integration(N)
             end_time = time.time()
-            if MPI.COMM_WORLD.Get_rank() == 0:
+            if rank == 0:
                 print(f"Parallel integration result for N={N}: {integral}")
                 print(f"Time taken: {end_time - start_time} seconds")

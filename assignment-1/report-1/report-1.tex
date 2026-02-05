@@ -1,0 +1,60 @@
+%----------------------------------------------------------------------------------------
+%       DOCUMENT CONFIGURATION AND INCLUDED PACKAGES
+%----------------------------------------------------------------------------------------
+
+\documentclass[english, 10pt,a4paper,oneside,headinclude,footinclude,BCOR5mm]{scrartcl}
+\input{config.tex}
+\usepackage[english]{babel}
+
+\begin{document}
+
+%----------------------------------------------------------------------------------------
+%	CONFIGURE HEADERS, TITLEPAGE, TABLE OF CONTENTS
+%----------------------------------------------------------------------------------------
+\renewcommand{\sectionmark}[1]{\markright{\spacedlowsmallcaps{#1}}} 
+\lehead{\mbox{\llap{\small\thepage\kern1em\color{halfgray} \vline}\color{halfgray}\hspace{0.5em}\rightmark\hfil}} 
+\pagestyle{plain} 
+
+
+\begin{center}
+    \large Advanced Computational Physics, University of Strathclyde, WS 2026,\\ Dr. Ben Hourahine
+
+    \vspace{0.5cm}
+
+    {\LARGE\bfseries Assignment 1\par}
+
+    \vspace{0.5cm}
+
+    \large Jörn Wilhelm\\
+    Glasgow, 1.\ Februar 2026
+
+    \vspace{1cm}
+\end{center}
+
+\newcommand{\cancelblue}[2]{
+  \textcolor{blue}{\cancelto{#1}{\textcolor{black}{#2}}}
+}
+\newcommand{\overblue}[2]{
+  \textcolor{blue}{\overbrace{\textcolor{black}{#2}}^{#1}}
+}
+\newcommand{\underblue}[2]{
+  \textcolor{blue}{\underbrace{\textcolor{black}{#2}}_{#1}}
+}
+\newcommand{\blue}[1]{\textcolor{blue}{#1}}
+\newcommand{\red}[1]{\textcolor{red}{#1}}
+%----------------------------------------------------------------------------------------
+%	ACTUAL CONTENT
+%----------------------------------------------------------------------------------------
+
+
+\noindent
+test
+
+%----------------------------------------------------------------------------------------
+%	BIBLIOGRAPHY
+%----------------------------------------------------------------------------------------
+
+%\bibliography{sources}
+
+%----------------------------------------------------------------------------------------
+\end{document}
