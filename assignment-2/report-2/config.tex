@@ -1,0 +1,63 @@
+\usepackage[nochapters, beramono, eulermath, pdfspacing, dottedtoc ]{classicthesis}
+
+\usepackage{arsclassica}
+\usepackage[T1]{fontenc} 
+\usepackage[utf8]{inputenc}
+
+\usepackage{graphicx}
+\usepackage{tcolorbox}
+\usepackage{subfig}
+\usepackage{mathtools}
+\usepackage{subcaption}
+\usepackage{pgfplots}
+\usepackage{wrapfig}
+\usepackage{tikz}
+\usepackage{circuitikz}
+\usepackage{siunitx}
+\usepackage{tikz-3dplot}
+\graphicspath{{figures/}}
+
+\usepackage{enumitem}
+\usepackage{lipsum}
+\usepackage{varioref}
+\usepackage{csquotes}
+\usepackage{cancel}
+
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{xfrac}
+\usepackage{braket}
+\usepackage{upgreek}
+\usepackage[version=4]{mhchem}
+\usepackage{eulervm}
+
+\usepackage[numbers,sort&compress]{natbib}
+\bibliographystyle{unsrtnat}
+
+\hypersetup{
+%draft, % Uncomment to remove all links (useful for printing in black and white)
+colorlinks=true, breaklinks=true, bookmarks=true,bookmarksnumbered,
+urlcolor=webbrown, linkcolor=RoyalBlue, citecolor=webgreen,
+pdftitle={},
+pdfauthor={\textcopyright},
+pdfsubject={},
+pdfkeywords={},
+pdfcreator={pdfLaTeX},
+pdfproducer={LaTeX with hyperref and ClassicThesis}
+}
+
+
+\newtheoremstyle{mytheorem}% Name
+  {\topsep}   % Space above
+  {\topsep}   % Space below
+  {\itshape}  % Body font
+  {}          % Indent amount
+  {\bfseries} % Head font
+  {:}         % Punctuation after theorem head
+  {.5em}      % Space after theorem head
+  {\thmname{#1}\thmnote{\ (\textbf{#2})}}          % Theorem head spec
+\theoremstyle{mytheorem}
+\newtheorem{satz}{Satz}[section]
+
+
+\usepackage[a4paper, margin=2.5cm]{geometry}
+

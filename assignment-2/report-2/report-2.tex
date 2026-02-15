@@ -1,0 +1,67 @@
+%----------------------------------------------------------------------------------------
+%       DOCUMENT CONFIGURATION AND INCLUDED PACKAGES
+%----------------------------------------------------------------------------------------
+
+\documentclass[english, 10pt,a4paper,oneside,headinclude,footinclude,BCOR5mm]{scrartcl}
+\input{config.tex}
+\usepackage[english]{babel}
+
+\begin{document}
+
+%----------------------------------------------------------------------------------------
+%	CONFIGURE HEADERS, TITLEPAGE, TABLE OF CONTENTS
+%----------------------------------------------------------------------------------------
+\renewcommand{\sectionmark}[1]{\markright{\spacedlowsmallcaps{#1}}} 
+\lehead{\mbox{\llap{\small\thepage\kern1em\color{halfgray} \vline}\color{halfgray}\hspace{0.5em}\rightmark\hfil}} 
+\pagestyle{plain} 
+
+
+\begin{center}
+    \large Advanced Computational Physics, University of Strathclyde, WS 2026,\\ Dr. Ben Hourahine
+
+    \vspace{0.5cm}
+
+    {\LARGE\bfseries Assignment 2\par}
+
+    \vspace{0.5cm}
+
+    \large Jörn Wilhelm\\
+    Glasgow, 15.\ Februar 2026
+
+    \vspace{1cm}
+\end{center}
+
+\newcommand{\cancelblue}[2]{
+  \textcolor{blue}{\cancelto{#1}{\textcolor{black}{#2}}}
+}
+\newcommand{\overblue}[2]{
+  \textcolor{blue}{\overbrace{\textcolor{black}{#2}}^{#1}}
+}
+\newcommand{\underblue}[2]{
+  \textcolor{blue}{\underbrace{\textcolor{black}{#2}}_{#1}}
+}
+\newcommand{\blue}[1]{\textcolor{blue}{#1}}
+\newcommand{\red}[1]{\textcolor{red}{#1}}
+%----------------------------------------------------------------------------------------
+%	ACTUAL CONTENT
+%----------------------------------------------------------------------------------------
+
+
+\noindent
+Running the code prints out all the tasks sequentially. 
+\\\\
+Concerning pylint. I did not change the name of the file to snake case, did use variables like x,y,z or dFdx. Is that alright?
+\\\\
+I believe the \textit{Maxwell} equations, that the \textit{Hansen} vectors should suffice, are wrong. The $|\mathbf{k}|$ should be in the numerator.
+Further one of the \textit{Hansen} vectors should have an $i$ upfront. 
+\\\\
+Find the repository under \url{https://github.com/joern16/advanced-computational-physics}.
+
+%----------------------------------------------------------------------------------------
+%	BIBLIOGRAPHY
+%----------------------------------------------------------------------------------------
+
+%\bibliography{sources}
+
+%----------------------------------------------------------------------------------------
+\end{document}
