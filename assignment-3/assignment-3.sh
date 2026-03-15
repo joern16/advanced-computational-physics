@@ -34,12 +34,4 @@
 
 module load mpi
 
-perf stat -e cycles,instructions,cache-misses mpirun -np 16 ./assignment-1.py --help
-
-perf stat -e cycles,instructions,cache-misses mpirun -np 16 ./assignment-1.py 
-
-perf stat -e cycles,instructions,cache-misses mpirun -np 16 ./assignment-1.py --parallel
-
-perf stat -e cycles,instructions,cache-misses mpirun -np 16 ./assignment-1.py --compare
-
-perf stat -e cycles,instructions,cache-misses mpirun -np 16 ./assignment-1.py --visualize
+perf stat -e cycles,instructions,cache-misses mpirun -np 16 ./assignment-3.py 

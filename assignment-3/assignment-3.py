@@ -53,6 +53,9 @@ def random_walk(i_start, j_start, N):
     i, j = i_start, j_start
     while True:
         visits[i, j] += 1
+        if i == 0 or i == N - 1 or j == 0 or j == N - 1:
+            break
+
         r = np.random.rand()
         if r < 0.25:
             i += 1
@@ -62,8 +65,7 @@ def random_walk(i_start, j_start, N):
             j += 1
         else:
             j -= 1
-        if i == 0 or i == N - 1 or j == 0 or j == N - 1:
-            break
+        
     return visits
 
 def greens_function_parallel(i_start, j_start, N, N_walkers_per_core):
@@ -81,8 +83,8 @@ def greens_function_parallel(i_start, j_start, N, N_walkers_per_core):
         visits += visits
         visits_sq += visits**2
 
-    total_visits = comm.Reduce(visits, op=MPI.SUM, root=0)
-    total_visits_sq = comm.Reduce(visits_sq, op=MPI.SUM, root=0)
+    total_visits = comm.reduce(visits, op=MPI.SUM, root=0)
+    total_visits_sq = comm.reduce(visits_sq, op=MPI.SUM, root=0)
 
     if rank == 0:
         greens_ij = total_visits / (N_walkers_per_core * comm.Get_size())
@@ -123,43 +125,54 @@ def plot_greens_function(greens_ij, title="Green's Function", filename=None):
     plt.show()
 
 
-def result_wrapper(x, y, phi, f, N_walkers_per_core, N, name="test"):
+def result_wrapper(points_xy, phi, f, N_walkers_per_core, N, name="test"):
     """
     Obtains results for the poisson equation.
     """
     h = 1.0 / (N - 1)
     phi_sol =  solve_poisson_over_relaxation(phi, f, h, optimal_omega(N))[0]
 
-    print("\n" + "="*60)
-    print("                 Restuls: " + name)
-    print("="*60)
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+	
+    if rank == 0:
+        print("\n" + "="*60)
+        print("                 Restuls: " + name)
+        print("="*60)
 
-    for _x, _y in x, y:
-        i, j = _x // h, _y // h
+    for _x, _y in points_xy:
+        i, j = int(_x // h), int(_y // h)
         greens_ij, std_deviation = greens_function_parallel(i, j, N, N_walkers_per_core)
-        phi_ij = solve_poisson_greens(phi, f, N, i, j, greens_ij, N_walkers_per_core)
-        phi_ij_sol = phi_sol[i, j]
+		
+        if rank == 0:
+            phi_ij = solve_poisson_greens(phi, f, N, i, j, greens_ij, N_walkers_per_core)
+            phi_ij_sol = phi_sol[i, j]
 
-        print(f"Random walk phi({_x}, {_y})    : {phi_ij:.8f}")
-        print(f"Standard deviation {_x}, {_y}  : {std_deviation:.8f}")
-        print(f"Gauss-Seidel phi({_x}, {_y})   : {phi_ij_sol:.8f}" + "\n")
+            print(f"Random walk phi({_x}, {_y})    : {phi_ij:.8f}")
+            print(f"Standard deviation {_x}, {_y}  : {std_deviation:.8f}")
+            print(f"Gauss-Seidel phi({_x}, {_y})   : {phi_ij_sol:.8f}" + "\n")
 
-        plot_greens_function(greens_ij, title= name + f": greens function at ({_x}, {_y})", filename=f"greens_function_{name}_{_x}_{_y}.png")
+            plot_greens_function(greens_ij, title= name + f": greens function at ({_x}, {_y})", filename=f"greens_function_{name}_{_x}_{_y}.png")
    
-    print("="*60)
+    if rank == 0: 
+        print("="*60)
     
-    return phi_ij, std_deviation, phi_ij_sol
+    return None
 
 if __name__ == "__main__":
-    N = 100
+	
+    N = 1000
     N_walkers_per_core = 1000
 
-    x, y = [0.50, 0.02, 0.02], [0.50, 0.02, 0.50]
+    points_xy = [(0.50, 0.50), (0.02, 0.02), (0.02, 0.50)]
 
     f = np.zeros((N, N), dtype=np.float64)
     phi = np.zeros((N, N), dtype=np.float64)
 
-    results_wrapper(x, y, phi, f, N_walkers_per_core, N, name="no_potential")
+    phi = np.full((N, N), 100.0,dtype=np.float64)
+    f = np.full((N, N), 10.0,dtype=np.float64)
+
+    result_wrapper(points_xy, phi, f, N_walkers_per_core, N, name="no_potential")
     
 
     
