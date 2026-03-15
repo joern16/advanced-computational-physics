@@ -9,6 +9,7 @@ License: MIT
 import numpy as np
 from mpi4py import MPI
 import matplotlib.pyplot as plt
+import time
 
 
 
@@ -142,15 +143,18 @@ def result_wrapper(points_xy, phi, f, N_walkers_per_core, N, name="test"):
 
     for _x, _y in points_xy:
         i, j = int(_x // h), int(_y // h)
+        start_time = time.time()
         greens_ij, std_deviation = greens_function_parallel(i, j, N, N_walkers_per_core)
+        time_taken = time.time() - start_time
 		
         if rank == 0:
             phi_ij = solve_poisson_greens(phi, f, N, i, j, greens_ij, N_walkers_per_core)
             phi_ij_sol = phi_sol[i, j]
 
+            print(f"Time taken for greens function : {time_taken:.8f}")
             print(f"Random walk phi({_x}, {_y})    : {phi_ij:.8f}")
             print(f"Standard deviation {_x}, {_y}  : {std_deviation:.8f}")
-            print(f"Gauss-Seidel phi({_x}, {_y})   : {phi_ij_sol:.8f}" + "\n")
+            print(f"Gauss-Seidel phi({_x}, {_y})   : {phi_ij_sol:.8f}")
 
             plot_greens_function(greens_ij, title= name + f": greens function at ({_x}, {_y})", filename=f"greens_function_{name}_{_x}_{_y}.png")
    
@@ -160,22 +164,55 @@ def result_wrapper(points_xy, phi, f, N_walkers_per_core, N, name="test"):
     return None
 
 if __name__ == "__main__":
-	
-    N = 1000
+    N = 100
     N_walkers_per_core = 1000
 
+    # Evaluation points
     points_xy = [(0.50, 0.50), (0.02, 0.02), (0.02, 0.50)]
 
-    f = np.zeros((N, N), dtype=np.float64)
-    phi = np.zeros((N, N), dtype=np.float64)
+    # Construct phi for (a), (b) and (c)
+    phi_a = np.full((N, N), 100.0,dtype=np.float64)
 
-    phi = np.full((N, N), 100.0,dtype=np.float64)
-    f = np.full((N, N), 10.0,dtype=np.float64)
+    phi_b = np.full((N, N), 100.0,dtype=np.float64)
+    phi_b[0, :] = 100.0   # Bottom
+    phi_b[-1, :] = 100.0  # Top
+    phi_b[:, 0] = -100.0   # Left
+    phi_b[:, -1] = -100.0  # Right
 
-    result_wrapper(points_xy, phi, f, N_walkers_per_core, N, name="no_potential")
+    phi_c = np.full((N, N), 100.0,dtype=np.float64)
+    phi_c[0, :] = 0.0   # Bottom
+    phi_c[-1, :] = 200.0  # Top
+    phi_c[:, 0] = 200.0   # Left
+    phi_c[:, -1] = -400.0  # Right
+
+    # Construct f for 0, (a), (b) and (c)
+    f_0 = np.full((N, N), 0.0,dtype=np.float64)
+    f_a = np.full((N, N), 10.0,dtype=np.float64)
+    f_b = np.linspace(1, 0, N)[:, None] + np.zeros((1, N))
+
+    X, Y = np.meshgrid(np.linspace(0, 1, N), np.linspace(0, 1, N))
+    f_c = np.exp(-10.0 * np.sqrt((X - 0.5)**2 + (Y - 0.5)**2))
+
     
+    # f = 0
+    result_wrapper(points_xy, phi_a, f_0, N_walkers_per_core, N, name="phi_a_f_0")
+    result_wrapper(points_xy, phi_b, f_0, N_walkers_per_core, N, name="phi_b_f_0")
+    result_wrapper(points_xy, phi_c, f_0, N_walkers_per_core, N, name="phi_c_f_0")
 
-    
+    # f (a)
+    result_wrapper(points_xy, phi_a, f_a, N_walkers_per_core, N, name="phi_a_f_a")
+    result_wrapper(points_xy, phi_b, f_a, N_walkers_per_core, N, name="phi_b_f_a")
+    result_wrapper(points_xy, phi_c, f_a, N_walkers_per_core, N, name="phi_c_f_a")
+
+    # f (b)
+    result_wrapper(points_xy, phi_a, f_b, N_walkers_per_core, N, name="phi_a_f_b")
+    result_wrapper(points_xy, phi_b, f_b, N_walkers_per_core, N, name="phi_b_f_b")
+    result_wrapper(points_xy, phi_c, f_b, N_walkers_per_core, N, name="phi_c_f_b")
+
+    # f (c)
+    result_wrapper(points_xy, phi_a, f_c, N_walkers_per_core, N, name="phi_a_f_c")
+    result_wrapper(points_xy, phi_b, f_c, N_walkers_per_core, N, name="phi_b_f_c")
+    result_wrapper(points_xy, phi_c, f_c, N_walkers_per_core, N, name="phi_c_f_c")
 
 
     
