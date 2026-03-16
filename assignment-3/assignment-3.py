@@ -20,7 +20,7 @@ def optimal_omega(N):
     """
     return 2.0 / (1.0 + np.sin(np.pi / N))
 
-def solve_poisson_over_relaxation(phi, f, omega, tol=1e-8, max_iter=10000):
+def solve_poisson_over_relaxation(phi, f, omega, tol=1e-10, max_iter=10000):
     """
     Solve the Poisson equation using over-relaxation.
     """
@@ -118,7 +118,9 @@ def greens_function_parallel(i_start, j_start, N, N_walkers_per_core):
 
     if rank == 0:
         greens_ij = mean.reshape((N, N))
-        std_deviation = np.sqrt(variance).reshape((N, N))
+
+        # Calculate standard deviation as the square root of the sum of variances of all the pixels
+        std_deviation = float(np.sqrt(np.sum(variance)))
         return greens_ij, std_deviation
 
     return None, None    
@@ -180,10 +182,11 @@ def result_wrapper(points_xy, phi, f, N_walkers_per_core, N, name="test", plot=F
             phi_ij = solve_poisson_greens(phi, f, N, i, j, greens_ij, N_walkers_per_core)
             phi_ij_sol = phi_sol[i, j]
 
-            print(f"Time taken for greens function : {time_taken:.8f}")
-            print(f"Random walk phi({_x}, {_y})    : {phi_ij:.8f}")
-            print(f"Standard deviation {_x}, {_y}  : {std_deviation:.8f}")
-            print(f"Gauss-Seidel phi({_x}, {_y})   : {phi_ij_sol:.8f}" + "\n")
+            print(f"Time taken for greens function  : {time_taken:.8f}")
+            print(f"Standard deviation ({_x}, {_y}) : {std_deviation:.8f}")
+            print(f"Random walk phi({_x}, {_y})     : {phi_ij:.8f}")
+            print(f"Gauss-Seidel phi({_x}, {_y})    : {phi_ij_sol:.8f}")
+            print(f"Difference ({_x}, {_y})         : {abs(phi_ij_sol-phi_ij):.8f}" + "\n")
 
             if plot: plot_greens_function(greens_ij, title= name + f": greens function at ({_x}, {_y})", filename=f"greens_function_{name}_{_x}_{_y}.png")
    
@@ -193,8 +196,8 @@ def result_wrapper(points_xy, phi, f, N_walkers_per_core, N, name="test", plot=F
     return None
 
 if __name__ == "__main__":
-    N = 1000
-    N_walkers_per_core = 100
+    N = 100
+    N_walkers_per_core = 10000
 
     # Evaluation points
     points_xy = [(0.50, 0.50), (0.02, 0.02), (0.02, 0.50)]

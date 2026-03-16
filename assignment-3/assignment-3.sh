@@ -32,6 +32,10 @@
 #SBATCH --output=slurm-%j.out
 #======================================================
 
+module load miniforge/python-3.12.10/25.3.0
 module load mpi
 
-perf stat -e cycles,instructions,cache-misses mpirun -np 16 ./assignment-3.py 
+source activate physics_env
+
+
+perf stat -e cycles,instructions,cache-misses mpirun -np 16 python3 assignment-3.py 
