@@ -10,6 +10,7 @@ import numpy as np
 from mpi4py import MPI
 import matplotlib.pyplot as plt
 import time
+from parallel_statistics import ParallelMeanVariance
 
 
 
@@ -69,7 +70,7 @@ def random_walk(i_start, j_start, N):
         
     return visits
 
-def greens_function_parallel(i_start, j_start, N, N_walkers_per_core):
+def greens_function_parallel_std_dev_approx(i_start, j_start, N, N_walkers_per_core):
     """
     Evaluate the greens function at (i, j) using multiple random walks in parallel.
     """
@@ -93,6 +94,32 @@ def greens_function_parallel(i_start, j_start, N, N_walkers_per_core):
         greens_ij = total_visits / (N_walkers_per_core * size)
 
         return greens_ij, np.sqrt(abs(total_variance))
+
+    return None, None  
+
+def greens_function_parallel(i_start, j_start, N, N_walkers_per_core):
+    """
+    Evaluate the greens function at (i, j) using multiple random walks in parallel.
+    Uses parallel_statistics for accurate distributed variance and mean calculation.
+    """
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+
+    calc = ParallelMeanVariance(size=N*N)
+
+    for _ in range(N_walkers_per_core):
+        _visits = random_walk(i_start, j_start, N).flatten()
+        # Add variances and means for single node
+        for pixel_idx in range(N*N):
+            calc.add_datum(pixel_idx, _visits[pixel_idx])
+
+    # Add variances and means among all ranks (gather returns to rank 0)
+    weight, mean, variance = calc.collect(comm=comm, mode="gather")
+
+    if rank == 0:
+        greens_ij = mean.reshape((N, N))
+        std_deviation = np.sqrt(variance).reshape((N, N))
+        return greens_ij, std_deviation
 
     return None, None    
   
@@ -133,7 +160,7 @@ def result_wrapper(points_xy, phi, f, N_walkers_per_core, N, name="test", plot=F
     Obtains results for the poisson equation.
     """
     h = 1.0 / (N - 1)
-    phi_sol =  solve_poisson_over_relaxation(phi.copy(), f, optimal_omega(N))[0]
+    phi_sol, _ =  solve_poisson_over_relaxation(phi.copy(), f, optimal_omega(N))
 
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
