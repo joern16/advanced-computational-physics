@@ -19,7 +19,7 @@ def optimal_omega(N):
     """
     return 2.0 / (1.0 + np.sin(np.pi / N))
 
-def solve_poisson_over_relaxation(phi, f, h, omega, tol=1e-5, max_iter=100000):
+def solve_poisson_over_relaxation(phi, f, omega, tol=1e-8, max_iter=10000):
     """
     Solve the Poisson equation using over-relaxation.
     """
@@ -75,22 +75,24 @@ def greens_function_parallel(i_start, j_start, N, N_walkers_per_core):
     """
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
+    size = comm.Get_size()
 
     visits = np.zeros((N, N), dtype=np.int64)
-    visits_sq = np.zeros((N, N), dtype=np.int64)
+    variance = 0.0
 
     for _ in range(N_walkers_per_core):
-        visits = random_walk(i_start, j_start, N)
-        visits += visits
-        visits_sq += visits**2
+        _visits = random_walk(i_start, j_start, N)
+        _visits_sq = _visits**2
+        visits += _visits
+        variance += (_visits_sq.sum() - _visits.sum()**2) / (N * N)
 
     total_visits = comm.reduce(visits, op=MPI.SUM, root=0)
-    total_visits_sq = comm.reduce(visits_sq, op=MPI.SUM, root=0)
+    total_variance = comm.reduce(variance, op=MPI.SUM, root=0)
 
     if rank == 0:
-        greens_ij = total_visits / (N_walkers_per_core * comm.Get_size())
-        variance = (total_visits_sq - total_visits**2 / (N_walkers_per_core * comm.Get_size())) / (N_walkers_per_core * comm.Get_size() - 1)
-        return greens_ij, np.sqrt(np.sum(variance))
+        greens_ij = total_visits / (N_walkers_per_core * size)
+
+        return greens_ij, np.sqrt(abs(total_variance))
 
     return None, None    
   
@@ -102,8 +104,8 @@ def solve_poisson_greens(phi, f, N, i, j, greens_ij, N_walkers_per_core):
     phi[1:-1, 1:-1] = 0.0 # makes sure that phi only containes the boundary values
     
     phi_ij = 0.0
-    for i in range(1, N - 1):
-        for j in range(1, N - 1):
+    for i in range(N):
+        for j in range(N):
             phi_ij += greens_ij[i, j] * (h**2 * f[i, j] + phi[i, j])
 
     return phi_ij
@@ -119,19 +121,19 @@ def plot_greens_function(greens_ij, title="Green's Function", filename=None):
     plt.imshow(greens_ij, origin='lower', cmap='viridis', extent=[0, 1, 0, 1])
     plt.colorbar(label="Green's Function Value")
     plt.title(title)
-    plt.xlabel('x (m)')
-    plt.ylabel('y (m)')
+    plt.xlabel('y (m)')
+    plt.ylabel('x (m)')
     if filename:
         plt.savefig(filename)
     plt.show()
 
 
-def result_wrapper(points_xy, phi, f, N_walkers_per_core, N, name="test"):
+def result_wrapper(points_xy, phi, f, N_walkers_per_core, N, name="test", plot=False):
     """
     Obtains results for the poisson equation.
     """
     h = 1.0 / (N - 1)
-    phi_sol =  solve_poisson_over_relaxation(phi, f, h, optimal_omega(N))[0]
+    phi_sol =  solve_poisson_over_relaxation(phi.copy(), f, optimal_omega(N))[0]
 
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
@@ -154,9 +156,9 @@ def result_wrapper(points_xy, phi, f, N_walkers_per_core, N, name="test"):
             print(f"Time taken for greens function : {time_taken:.8f}")
             print(f"Random walk phi({_x}, {_y})    : {phi_ij:.8f}")
             print(f"Standard deviation {_x}, {_y}  : {std_deviation:.8f}")
-            print(f"Gauss-Seidel phi({_x}, {_y})   : {phi_ij_sol:.8f}")
+            print(f"Gauss-Seidel phi({_x}, {_y})   : {phi_ij_sol:.8f}" + "\n")
 
-            plot_greens_function(greens_ij, title= name + f": greens function at ({_x}, {_y})", filename=f"greens_function_{name}_{_x}_{_y}.png")
+            if plot: plot_greens_function(greens_ij, title= name + f": greens function at ({_x}, {_y})", filename=f"greens_function_{name}_{_x}_{_y}.png")
    
     if rank == 0: 
         print("="*60)
@@ -164,8 +166,8 @@ def result_wrapper(points_xy, phi, f, N_walkers_per_core, N, name="test"):
     return None
 
 if __name__ == "__main__":
-    N = 100
-    N_walkers_per_core = 1000
+    N = 1000
+    N_walkers_per_core = 100
 
     # Evaluation points
     points_xy = [(0.50, 0.50), (0.02, 0.02), (0.02, 0.50)]
@@ -195,7 +197,7 @@ if __name__ == "__main__":
 
     
     # f = 0
-    result_wrapper(points_xy, phi_a, f_0, N_walkers_per_core, N, name="phi_a_f_0")
+    result_wrapper(points_xy, phi_a, f_0, N_walkers_per_core, N, name="phi_a_f_0", plot=True)
     result_wrapper(points_xy, phi_b, f_0, N_walkers_per_core, N, name="phi_b_f_0")
     result_wrapper(points_xy, phi_c, f_0, N_walkers_per_core, N, name="phi_c_f_0")
 
