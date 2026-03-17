@@ -12,6 +12,8 @@ import matplotlib.pyplot as plt
 import time
 from parallel_statistics import ParallelMeanVariance
 
+from numba import njit
+
 
 
 def optimal_omega(N):
@@ -45,8 +47,8 @@ def solve_poisson_over_relaxation(phi, f, omega, tol=1e-10, max_iter=10000):
             return phi, iterations + 1
             
     return phi, max_iter
-    
 
+@njit
 def random_walk(i_start, j_start, N):
     """
     Perform a random walk on a square grid.
@@ -107,11 +109,14 @@ def greens_function_parallel(i_start, j_start, N, N_walkers_per_core):
 
     calc = ParallelMeanVariance(size=N*N)
 
-    for _ in range(N_walkers_per_core):
-        _visits = random_walk(i_start, j_start, N).flatten()
-        # Add variances and means for single node
-        for pixel_idx in range(N*N):
-            calc.add_datum(pixel_idx, _visits[pixel_idx])
+    # Collect all walks into a 2D array of shape (N_walkers_per_core, N*N)
+    all_visits = np.zeros((N_walkers_per_core, N*N), dtype=np.int64)
+    for w in range(N_walkers_per_core):
+        all_visits[w, :] = random_walk(i_start, j_start, N).flatten()
+
+    # Add all data for each pixel at once using add_data
+    for pixel_idx in range(N*N):
+        calc.add_data(pixel_idx, all_visits[:, pixel_idx])
 
     # Add variances and means among all ranks (gather returns to rank 0)
     weight, mean, variance = calc.collect(comm=comm, mode="gather")
