@@ -138,8 +138,9 @@ Experiment & Runtime & Std. Dev. & Random Walk  & Gauss-Seidel & Difference \\
 \end{table}
 \newpage
 \noindent
-A accuracy of 4 decimals was not achievable, due to the long computational time. The wall clock time for the entire 
-program, yielding all above results, was $3247.5$ seconds, which is about $54$ minutes.
+A accuracy of 4 decimals was not achievable, due to the long computational time.
+The errors (differences) lie mostly in the standard deviation of the greens function.
+The wall clock time for the entire program, yielding all above results, was $3247.5$ seconds, which is about $54$ minutes.
 \\\\
 Three main alterations to the naive implementations were made. 
 \begin{enumerate}
@@ -171,7 +172,7 @@ However, the parallelization $p$ is the same, as shown below. \textit{Amdahl's} 
 is fitted to the data, yielding the respective values for $p$\,. The inflection point could not be observed,
 since only 16 cores were available. The theoretical value for the inflection point is given by
 \begin{align}
-  n_{inf} = \frac{p}{1-p}= 177.6
+  n_{inf} = \frac{p}{1-p}= 177.6\approx 2^{7.47}
 \end{align}
 cores, using the average value $\bar{p} = 0.9944$\,.
 \\\\
