@@ -17,7 +17,7 @@
 #SBATCH --account=teaching
 #
 # No. of tasks required
-#SBATCH --ntasks=16 
+#SBATCH --ntasks=16
 #
 # Distribute processes in round-robin fashion for load balancing
 #SBATCH --distribution=block:block
