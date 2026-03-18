@@ -129,9 +129,10 @@ def greens_function_parallel(i_start, j_start, N, N_walkers_per_core):
 
     if rank == 0:
         greens_ij = mean.reshape((N, N))
+        total_walkers = N_walkers_per_core * comm.Get_size()
 
         # Calculate standard deviation as the square root of the sum of variances of all the pixels
-        std_deviation = float(np.sqrt(np.sum(variance)))
+        std_deviation = float(np.sqrt(np.sum(variance) / total_walkers))
         return greens_ij, std_deviation
 
     return None, None
