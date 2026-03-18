@@ -5,11 +5,12 @@ Numerical evaluation of the Poisson and Laplace equations on grids.
 ...
 License: MIT
 """
+import time
 
 import numpy as np
-from mpi4py import MPI
 import matplotlib.pyplot as plt
-import time
+
+from mpi4py import MPI
 from parallel_statistics import ParallelMeanVariance
 
 from numba import njit
@@ -28,24 +29,24 @@ def solve_poisson_over_relaxation(phi, f, omega, tol=1e-10, max_iter=10000):
     """
     N_y, N_x = phi.shape
     h = 1.0 / (N_y - 1)
-    
+
     for iterations in range(max_iter):
         max_diff = 0.0
-        
+
         # Lexicographical Gauss-Seidel update
         for i in range(1, N_y - 1):
             for j in range(1, N_x - 1):
                 phi_old = phi[i, j]
-                
-                phi[i,j] = omega * (h**2 * f[i,j] + 0.25*(phi[i+1,j] + phi[i-1,j] + phi[i,j+1] + phi[i,j-1])) + (1.0 - omega) * phi_old
+
+                phi[i,j] = omega * (h**2 * f[i,j] + 0.25*(phi[i+1,j] + phi[i-1,j] + phi[i,j+1] + phi[i,j-1])) 
+                + (1.0 - omega) * phi_old
 
                 diff = abs(phi[i, j] - phi_old)
-                if diff > max_diff:
-                    max_diff = diff
-                    
+                max_diff = max(max_diff, diff)
+
         if max_diff < tol:
             return phi, iterations + 1
-            
+
     return phi, max_iter
 
 @njit
@@ -69,7 +70,7 @@ def random_walk(i_start, j_start, N):
             j += 1
         else:
             j -= 1
-        
+
     return visits
 
 def greens_function_parallel_std_dev_approx(i_start, j_start, N, N_walkers_per_core):
@@ -97,7 +98,7 @@ def greens_function_parallel_std_dev_approx(i_start, j_start, N, N_walkers_per_c
 
         return greens_ij, np.sqrt(abs(total_variance))
 
-    return None, None  
+    return None, None
 
 def greens_function_parallel(i_start, j_start, N, N_walkers_per_core):
     """
@@ -109,17 +110,22 @@ def greens_function_parallel(i_start, j_start, N, N_walkers_per_core):
 
     calc = ParallelMeanVariance(size=N*N)
 
-    # Collect all walks into a 2D array of shape (N_walkers_per_core, N*N)
-    all_visits = np.zeros((N_walkers_per_core, N*N), dtype=np.int16)
-    for w in range(N_walkers_per_core):
-        all_visits[w, :] = random_walk(i_start, j_start, N).flatten()
+    # Collect all walks of a batch in a 2D array. Batches save memory, otherwise OOM error
+    batch_size = 1000
+    for batch_start_idx in range(0, N_walkers_per_core, batch_size):
+        batch_end_idx = min(batch_start_idx + batch_size, N_walkers_per_core)
+        current_batch_size = batch_end_idx - batch_start_idx
 
-    # Add all data for each pixel at once using add_data
-    for pixel_idx in range(N*N):
-        calc.add_data(pixel_idx, all_visits[:, pixel_idx])
+        batch_visits = np.zeros((current_batch_size, N*N), dtype=np.int64)
+        for w in range(current_batch_size):
+            batch_visits[w, :] = random_walk(i_start, j_start, N).flatten()
+
+        # Add batch data for each pixel at once using add_data
+        for pixel_idx in range(N*N):
+            calc.add_data(pixel_idx, batch_visits[:, pixel_idx])
 
     # Add variances and means among all ranks (gather returns to rank 0)
-    weight, mean, variance = calc.collect(comm=comm, mode="gather")
+    _, mean, variance = calc.collect(comm=comm, mode="gather")
 
     if rank == 0:
         greens_ij = mean.reshape((N, N))
@@ -128,15 +134,15 @@ def greens_function_parallel(i_start, j_start, N, N_walkers_per_core):
         std_deviation = float(np.sqrt(np.sum(variance)))
         return greens_ij, std_deviation
 
-    return None, None    
-  
-def solve_poisson_greens(phi, f, N, i, j, greens_ij, N_walkers_per_core):
+    return None, None
+
+def solve_poisson_greens(phi, f, N, greens_ij):
     """
     Evaluate phi at (i, j) using a computed greens function.
     """
     h = 1.0 / (N - 1)
     phi[1:-1, 1:-1] = 0.0 # makes sure that phi only containes the boundary values
-    
+
     phi_ij = 0.0
     for i in range(N):
         for j in range(N):
@@ -150,7 +156,7 @@ def plot_greens_function(greens_ij, title="Green's Function", filename=None):
     Plots the 2D Green's function as a heatmap.
     """
     plt.figure(figsize=(8, 6))
-    
+
     # Assuming extent is from 0 to 1 meters as per assignment
     plt.imshow(greens_ij, origin='lower', cmap='viridis', extent=[0, 1, 0, 1])
     plt.colorbar(label="Green's Function Value")
@@ -171,7 +177,7 @@ def result_wrapper(points_xy, phi, f, N_walkers_per_core, N, name="test", plot=F
 
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
-	
+
     if rank == 0:
         print("\n" + "="*60)
         print("                 Restuls: " + name)
@@ -182,9 +188,9 @@ def result_wrapper(points_xy, phi, f, N_walkers_per_core, N, name="test", plot=F
         start_time = time.time()
         greens_ij, std_deviation = greens_function_parallel(i, j, N, N_walkers_per_core)
         time_taken = time.time() - start_time
-		
+
         if rank == 0:
-            phi_ij = solve_poisson_greens(phi, f, N, i, j, greens_ij, N_walkers_per_core)
+            phi_ij = solve_poisson_greens(phi, f, N, greens_ij)
             phi_ij_sol = phi_sol[i, j]
 
             print(f"Time taken for greens function  : {time_taken:.8f}")
@@ -193,12 +199,12 @@ def result_wrapper(points_xy, phi, f, N_walkers_per_core, N, name="test", plot=F
             print(f"Gauss-Seidel phi({_x}, {_y})    : {phi_ij_sol:.8f}")
             print(f"Difference ({_x}, {_y})         : {abs(phi_ij_sol-phi_ij):.8f}" + "\n")
 
-            if plot: plot_greens_function(greens_ij, title= name + f": greens function at ({_x}, {_y})", filename=f"greens_function_{name}_{_x}_{_y}.png")
-   
+            if plot:
+                plot_greens_function(greens_ij, title= name + f": greens function at ({_x}, {_y})",
+                    filename=f"greens_function_{name}_{_x}_{_y}.png")
+
     if rank == 0: 
         print("="*60)
-    
-    return None
 
 if __name__ == "__main__":
     N = 200
@@ -230,7 +236,7 @@ if __name__ == "__main__":
     X, Y = np.meshgrid(np.linspace(0, 1, N), np.linspace(0, 1, N))
     f_c = np.exp(-10.0 * np.sqrt((X - 0.5)**2 + (Y - 0.5)**2))
 
-    
+
     # f = 0
     result_wrapper(points_xy, phi_a, f_0, N_walkers_per_core, N, name="phi_a_f_0", plot=True)
     result_wrapper(points_xy, phi_b, f_0, N_walkers_per_core, N, name="phi_b_f_0")
@@ -252,5 +258,5 @@ if __name__ == "__main__":
     result_wrapper(points_xy, phi_c, f_c, N_walkers_per_core, N, name="phi_c_f_c")
 """
 
-    
-   
+
+
