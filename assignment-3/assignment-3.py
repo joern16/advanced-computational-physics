@@ -110,7 +110,7 @@ def greens_function_parallel(i_start, j_start, N, N_walkers_per_core):
     calc = ParallelMeanVariance(size=N*N)
 
     # Collect all walks into a 2D array of shape (N_walkers_per_core, N*N)
-    all_visits = np.zeros((N_walkers_per_core, N*N), dtype=np.int64)
+    all_visits = np.zeros((N_walkers_per_core, N*N), dtype=np.int16)
     for w in range(N_walkers_per_core):
         all_visits[w, :] = random_walk(i_start, j_start, N).flatten()
 
@@ -201,8 +201,8 @@ def result_wrapper(points_xy, phi, f, N_walkers_per_core, N, name="test", plot=F
     return None
 
 if __name__ == "__main__":
-    N = 100
-    N_walkers_per_core = 10000
+    N = 200
+    N_walkers_per_core = 1000
 
     # Evaluation points
     points_xy = [(0.50, 0.50), (0.02, 0.02), (0.02, 0.50)]
@@ -235,7 +235,7 @@ if __name__ == "__main__":
     result_wrapper(points_xy, phi_a, f_0, N_walkers_per_core, N, name="phi_a_f_0", plot=True)
     result_wrapper(points_xy, phi_b, f_0, N_walkers_per_core, N, name="phi_b_f_0")
     result_wrapper(points_xy, phi_c, f_0, N_walkers_per_core, N, name="phi_c_f_0")
-
+"""
     # f (a)
     result_wrapper(points_xy, phi_a, f_a, N_walkers_per_core, N, name="phi_a_f_a")
     result_wrapper(points_xy, phi_b, f_a, N_walkers_per_core, N, name="phi_b_f_a")
@@ -250,7 +250,7 @@ if __name__ == "__main__":
     result_wrapper(points_xy, phi_a, f_c, N_walkers_per_core, N, name="phi_a_f_c")
     result_wrapper(points_xy, phi_b, f_c, N_walkers_per_core, N, name="phi_b_f_c")
     result_wrapper(points_xy, phi_c, f_c, N_walkers_per_core, N, name="phi_c_f_c")
-
+"""
 
     
    

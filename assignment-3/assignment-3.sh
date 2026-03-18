@@ -32,6 +32,8 @@
 #SBATCH --output=slurm-%j.out
 #======================================================
 
+module purge
+
 module load miniforge/python-3.12.10/25.3.0
 module load mpi
 
