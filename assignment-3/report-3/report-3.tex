@@ -68,21 +68,24 @@ Three main alterations to the naive implementations were made.
     be just the probability of the random walk hitting a certain point, inside the grid and at the boundary.
   \item The package \textit{njit} from \textit{numba} is used to compile the random walk function, avoiding 
     the overhead of the python interpreter. This results in a significant speed up.
-  \item The package \textit{parallel_statistics} was used to calculate mean, i.e. the \textit{Greens} function, and variance of 
-    the random walk.
+  \item The package \textit{parallel-statistics} was used to calculate mean, i.e. the \textit{Greens} function, and variance of 
+    the random walk. Note, that due to heavy memory occupation, the mean and variance were calculated in batches.
 \end{enumerate}
-The plot of the speed up factors, i.e. \textit{Amdahl's law},
-for varying cores between 1 and 16 is shown in figure \ref{fig:amdahl}. In particular the function 
+In figure \ref{fig:amdahl} the speed up factors, for $N=200$\,, $100$ total walks and 
+varying starting points $(0.5,0.5)$\,, $(0.02,0.5)$\,, $(0.02,0.02)$, are shown. Note, that the duration of the 
+walk depends significantly on the starting point. Further, \textit{Amdahl's} law  
 \begin{align}
   f(n) = \frac{1}{1-p + \frac{p}{n}}
 \end{align}
-is fitted to the data, yielding 
-
-The wall clock time for the program 
-
-
+is fitted to the data, yielding $p=0.$\,.
+\begin{figure}[h!]
+  
+\end{figure}
+\noindent
+The wall clock time for the program for 16 cores, $N=200$ and $1000000$ walkers per core was 
+\\\\
 When using \textit{pylint}, the flag that the programm is named \textit{assignment-3} was ignored,
-aswell as some snake-case and redifining flags, when the context was obvious.
+aswell as some snake-case and redifining flags, when the context was obvious. 
 
 
 %----------------------------------------------------------------------------------------

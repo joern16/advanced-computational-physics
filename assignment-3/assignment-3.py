@@ -38,8 +38,8 @@ def solve_poisson_over_relaxation(phi, f, omega, tol=1e-10, max_iter=10000):
             for j in range(1, N_x - 1):
                 phi_old = phi[i, j]
 
-                phi[i,j] = omega * (h**2 * f[i,j] + 0.25*(phi[i+1,j] + phi[i-1,j] + phi[i,j+1] + phi[i,j-1])) 
-                + (1.0 - omega) * phi_old
+                phi[i,j] = (omega * (h**2 * f[i,j] + 0.25*(phi[i+1,j] + phi[i-1,j]
+                    + phi[i,j+1] + phi[i,j-1])) + (1.0 - omega) * phi_old)
 
                 diff = abs(phi[i, j] - phi_old)
                 max_diff = max(max_diff, diff)
@@ -203,7 +203,7 @@ def result_wrapper(points_xy, phi, f, N_walkers_per_core, N, name="test", plot=F
                 plot_greens_function(greens_ij, title= name + f": greens function at ({_x}, {_y})",
                     filename=f"greens_function_{name}_{_x}_{_y}.png")
 
-    if rank == 0: 
+    if rank == 0:
         print("="*60)
 
 if __name__ == "__main__":
@@ -257,6 +257,3 @@ if __name__ == "__main__":
     result_wrapper(points_xy, phi_b, f_c, N_walkers_per_core, N, name="phi_b_f_c")
     result_wrapper(points_xy, phi_c, f_c, N_walkers_per_core, N, name="phi_c_f_c")
 """
-
-
-
