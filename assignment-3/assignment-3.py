@@ -209,7 +209,7 @@ def result_wrapper(points_xy, phi, f, N_walkers_per_core, N, name="test", plot=F
 
 if __name__ == "__main__":
     N = 200
-    N_walkers_per_core = 1000
+    N_walkers_per_core = 100000
 
     # Evaluation points
     points_xy = [(0.50, 0.50), (0.02, 0.02), (0.02, 0.50)]
