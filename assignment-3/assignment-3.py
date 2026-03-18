@@ -242,7 +242,7 @@ if __name__ == "__main__":
     result_wrapper(points_xy, phi_a, f_0, N_walkers_per_core, N, name="phi_a_f_0", plot=True)
     result_wrapper(points_xy, phi_b, f_0, N_walkers_per_core, N, name="phi_b_f_0")
     result_wrapper(points_xy, phi_c, f_0, N_walkers_per_core, N, name="phi_c_f_0")
-"""
+
     # f (a)
     result_wrapper(points_xy, phi_a, f_a, N_walkers_per_core, N, name="phi_a_f_a")
     result_wrapper(points_xy, phi_b, f_a, N_walkers_per_core, N, name="phi_b_f_a")
@@ -257,4 +257,4 @@ if __name__ == "__main__":
     result_wrapper(points_xy, phi_a, f_c, N_walkers_per_core, N, name="phi_a_f_c")
     result_wrapper(points_xy, phi_b, f_c, N_walkers_per_core, N, name="phi_b_f_c")
     result_wrapper(points_xy, phi_c, f_c, N_walkers_per_core, N, name="phi_c_f_c")
-"""
+
