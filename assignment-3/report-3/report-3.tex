@@ -62,7 +62,7 @@ functions are shown in one plot, due to the later discussed choice of $f$\,.
 Furthermore, the results for all possible combinations in task 4, including the $f=0$ case, are printed out, toghether
 with the runtime, the standard deviation and the \textit{Gauss-Seidel} result. Such are listed in Tables
 \ref{tab:res1}, \ref{tab:res2} and \ref{tab:res3} for points $(0.5,0.5),\,(0.02,0.5)$ and $(0.02,0.02)$\,.
-The grid size was set to $N=200$ and the number of walkers per core to $100000$ ($16000000$ total walks). The grid size was chosen, so that 
+The grid size was set to $N=200$ and the number of walkers per core to $100000$ ($1600000$ total walks). The grid size was chosen, so that 
 the \textit{Gauss-Seidel} solution does not significantly change when increasing $N$ further. The number of walkers per core
 was chosen, so that the standard deviation is small enough and both solutions are close enough.
 \begin{table}[h!]
@@ -136,21 +136,27 @@ Experiment & Runtime & Std. Dev. & Random Walk  & Gauss-Seidel & Difference \\
 \hline
 \end{tabular}
 \end{table}
+
+\begin{table}[h!]
+\centering
+\caption{Simulation results with increased walkers for $\phi$ and $f$ chosen as (c) and (c).} 
+\label{tab:res4}
+\begin{tabular}{lccccc}
+\hline
+Point & Runtime & Std. Dev. & Random Walk  & Gauss-Seidel & Difference \\
+\hline
+(0.5, 0.5) & 974.7884 & 0.0657 & 0.8924 & 0.8895 & 0.0029 \\
+(0.02, 0.02) & 592.7685 & 0.0050 & 99.8904 & 99.9005 & 0.0101 \\
+(0.02, 0.5) & 625.5205 & 0.01704 & -1.3799 & -1.4008 & 0.0209 \\
+\hline
+\end{tabular}
+\end{table}
 \newpage
 \noindent
 A accuracy of 4 decimals was not achievable, due to the long computational time.
 The errors (differences) lie mostly in the standard deviation of the greens function.
 The wall clock time for the entire program, yielding all above results, was $3247.5$ seconds, which is about $54$ minutes.
-\\\\
-Three main alterations to the naive implementations were made. 
-\begin{enumerate}
-  \item Instead of working with $f$\,, the algorithm uses $h^2 f$\,. This causes the \textit{Greens} function to 
-    be just the probability of the random walk hitting a certain point, inside the grid and at the boundary.
-  \item The package \textit{njit} from \textit{numba} is used to compile the random walk function, avoiding 
-    the overhead of the python interpreter. This results in a significant speed up.
-  \item The package \textit{parallel-statistics} was used to calculate mean, i.e. the \textit{Greens} function, and variance of 
-    the random walk. Note, that due to heavy memory occupation, the mean and variance were calculated in batches.
-\end{enumerate}
+Incresing the number of random walks, to e.g. $16000000$\,, yields better results, as shown in table \ref{tab:res4}.
 \begin{figure}[h!]
   \centering
   \includegraphics[width=0.6\textwidth]{amdahl_0505.pdf}
@@ -160,6 +166,8 @@ Three main alterations to the naive implementations were made.
     The times for using only one core are given by $157.0015$, $86.3661$ and $90.2549$ seconds, respectively.}
   \label{fig:amdahl}
 \end{figure}
+
+\noindent
 In Figure \ref{fig:amdahl} the speed up factors, for $N=200$\,, $160000$ total walks and 
 varying starting points $(0.5,0.5)$\,, $(0.02,0.5)$\,, $(0.02,0.02)$, are shown.
 This only includes the computation of the greens function, not the solution of the poisson equation.
@@ -176,8 +184,20 @@ since only 16 cores were available. The theoretical value for the inflection poi
 \end{align}
 cores, using the average value $\bar{p} = 0.9944$\,.
 \\\\
+Three main alterations to the naive implementations were made. 
+\begin{enumerate}
+  \item Instead of working with $f$\,, the algorithm uses $h^2 f$\,. This causes the \textit{Greens} function to 
+    be just the probability of the random walk hitting a certain point, inside the grid and at the boundary.
+  \item The package \textit{njit} from \textit{numba} is used to compile the random walk function, avoiding 
+    the overhead of the python interpreter. This results in a significant speed up.
+  \item The package \textit{parallel-statistics} was used to calculate mean, i.e. the \textit{Greens} function, and variance of 
+    the random walk. Note, that due to heavy memory occupation, the mean and variance were calculated in batches.
+\end{enumerate}
+\noindent
 When using \textit{pylint}, the flag that the programm is named \textit{assignment-3} was ignored,
 aswell as some snake-case and redifining flags, when the context was obvious. 
+\\\\
+Find the repository under \url{https://github.com/joern16/advanced-computational-physics}.
 
 
 %----------------------------------------------------------------------------------------
