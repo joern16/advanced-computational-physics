@@ -64,8 +64,14 @@ T = 1.0
 energies, magnetizations = ising_walker(L, T, steps=10000, burn_in=2000)
 
 
-
+plt.figure(figsize=(8, 6))
 plt.plot(energies)
+plt.title("energies")
+plt.savefig("energies")
 plt.show()
+
+plt.figure(figsize=(8, 6))
 plt.plot(magnetizations)
+plt.title("magnetizations")
+plt.savefig("magnetizations")
 plt.show()
