@@ -6,8 +6,6 @@ Numerical evaluation of the Ising and XY model.
 License: MIT
 """
 
-import time
-
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -15,6 +13,7 @@ from mpi4py import MPI
 from parallel_statistics import ParallelMeanVariance
 
 from numba import njit
+
 
 def ising_lattice_init(L, random=True):
     """
@@ -37,6 +36,7 @@ def ising_energy(lattice, J=1.0, H=0.0):
             neighbor_sum = (lattice[(i + 1) % L, j] + lattice[i, (j + 1) % L])
             energy += -J * spin * neighbor_sum - H * spin
     return energy
+
 
 def ising_walker(L, T, J=1.0, H=0.0, burn_in=1000, steps=10000, plot=False):
     """
@@ -87,15 +87,14 @@ def ising_walker(L, T, J=1.0, H=0.0, burn_in=1000, steps=10000, plot=False):
     
     return energies, magnetizations
 
-
-def ising_walker_parallel(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000):
+def ising_walker_parallel(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk=False):
     """
     Perform parallel Metropolis sampling at temperature T.
     """
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
 
-    energies, magnetizations = ising_walker(L, T, J, H, burn_in, steps_per_core)
+    energies, magnetizations = ising_walker(L, T, J, H, burn_in, steps_per_core, plot_walk)
 
     calc = ParallelMeanVariance(size=2)
     calc.add_data(0, energies)
@@ -112,18 +111,31 @@ def ising_walker_parallel(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000
         # The heat capacity and magnetic susceptibility is in units of kB
         return mean_energy, mean_magnetization, var_energy / (T**2), var_magnetization / T    
 
+    else:
+        return None, None, None, None
+
+def ising_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk=False):
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+
+    mean_energy, mean_magnetization, heat_capacity, magnetic_susceptibility = ising_walker_parallel(L, T, J, H, burn_in, steps_per_core, plot_walk)
+
+    if rank == 0:
+        print("Mean energy: ", mean_energy)
+        print("Mean magnetization: ", mean_magnetization)
+        print("Heat capacity: ", heat_capacity)
+        print("Magnetic susceptibility: ", magnetic_susceptibility)
+
+
 
     
 if __name__ == "__main__":
     L = 16
     T = 1.0
 
-    mean_energy, mean_magnetization, heat_capacity, magnetic_susceptibility = ising_walker_parallel(L, T)
+    ising_wrapper(L, T, J=1.0, H=5.0, burn_in=10000, steps_per_core=100000)
 
-    print("Mean energy: ", mean_energy)
-    print("Mean magnetization: ", mean_magnetization)
-    print("Heat capacity: ", heat_capacity)
-    print("Magnetic susceptibility: ", magnetic_susceptibility)
+    
 
 
 
