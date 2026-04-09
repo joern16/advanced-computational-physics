@@ -54,6 +54,9 @@ def ising_walker(L, T, J=1.0, H=0.0, burn_in=1000, steps=10000):
             lattice[i, j] *= -1
             energies[iteration + 1] = energies[iteration] + energy_difference
             magnetizations[iteration + 1] = magnetizations[iteration] + 2 * lattice[i, j]
+        else:
+            energies[iteration + 1] = energies[iteration]
+            magnetizations[iteration + 1] = magnetizations[iteration]
     
     return energies, magnetizations
 
@@ -61,15 +64,16 @@ def ising_walker(L, T, J=1.0, H=0.0, burn_in=1000, steps=10000):
 L = 16
 T = 1.0
 
-energies, magnetizations = ising_walker(L, T, steps=10000, burn_in=2000)
+energies, magnetizations = ising_walker(L, T, steps=100000, burn_in=10000)
 
-
+print(energies)
 plt.figure(figsize=(8, 6))
 plt.plot(energies)
 plt.title("energies")
 plt.savefig("energies")
 plt.show()
 
+print(magnetizations)
 plt.figure(figsize=(8, 6))
 plt.plot(magnetizations)
 plt.title("magnetizations")
