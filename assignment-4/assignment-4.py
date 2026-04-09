@@ -63,16 +63,19 @@ def ising_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_w
     """
     Run Metropolis sampling in parallel and calculate mean energy, mean magnetization, heat capacity, and magnetic susceptibility.
     """
+    start_time = time.time()
+
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
+    calc = ParallelMeanVariance(size=2)
 
     energies, magnetizations = ising_walker(L, T, J, H, burn_in, steps_per_core)
-
-    calc = ParallelMeanVariance(size=2)
     calc.add_data(0, energies)
     calc.add_data(1, magnetizations)
 
     _, mean, var = calc.collect(comm=comm, mode="gather")
+
+    time_taken = time.time() - start_time
 
     # Plot energies and magnetizations for single walker
     if plot_walk and rank == 0:
@@ -92,6 +95,7 @@ def ising_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_w
         print("Mean magnetization: ", mean[1])
         print("Heat capacity: ", var[0] / (T**2))
         print("Magnetic susceptibility: ", var[1] / T)
+        print("Time taken: ", time_taken)
 
     
 if __name__ == "__main__":
