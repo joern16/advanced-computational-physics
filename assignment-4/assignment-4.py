@@ -5,6 +5,7 @@ Numerical evaluation of the Ising and XY model.
 ...
 License: MIT
 """
+import time
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -20,11 +21,15 @@ def ising_walker(L, T, J=1.0, H=0.0, burn_in=1000, steps=10000):
     Perform Metropolis sampling at temperature T.
     """
     # Initialize lattice
-    lattice = np.random.choice([-1, 1], size=(L, L))
+    lattice = np.empty((L, L), dtype=np.int64)
+    for i in range(L):
+        for j in range(L):
+            lattice[i, j] = 1 if np.random.rand() < 0.5 else -1
     
     # Burn-in period
     for _ in range(burn_in):
-        i, j = np.random.randint(L, size=2)
+        i = np.random.randint(0, L)
+        j = np.random.randint(0, L)
         energy_difference = 2 * lattice[i, j] * (J * (lattice[(i + 1) % L, j] + lattice[(i - 1) % L, j] + 
                                                  lattice[i, (j + 1) % L] + lattice[i, (j - 1) % L]) + H)
         
@@ -45,7 +50,8 @@ def ising_walker(L, T, J=1.0, H=0.0, burn_in=1000, steps=10000):
 
     # Sampling period
     for iteration in range(steps):
-        i, j = np.random.randint(L, size=2)
+        i = np.random.randint(0, L)
+        j = np.random.randint(0, L)
         energy_difference = 2 * lattice[i, j] * (J * (lattice[(i + 1) % L, j] + lattice[(i - 1) % L, j] + 
                                                  lattice[i, (j + 1) % L] + lattice[i, (j - 1) % L]) + H)
         
