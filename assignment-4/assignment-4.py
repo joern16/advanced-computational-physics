@@ -1,5 +1,20 @@
+#!/opt/software/anaconda/python-3.10.9/bin/python
+
+"""
+Numerical evaluation of the Ising and XY model.
+...
+License: MIT
+"""
+
+import time
+
 import numpy as np
 import matplotlib.pyplot as plt
+
+from mpi4py import MPI
+from parallel_statistics import ParallelMeanVariance
+
+from numba import njit
 
 def ising_lattice_init(L, random=True):
     """
@@ -23,7 +38,7 @@ def ising_energy(lattice, J=1.0, H=0.0):
             energy += -J * spin * neighbor_sum - H * spin
     return energy
 
-def ising_walker(L, T, J=1.0, H=0.0, burn_in=1000, steps=10000):
+def ising_walker(L, T, J=1.0, H=0.0, burn_in=1000, steps=10000, plot=False):
     """
     Perform Metropolis sampling at temperature T.
     """
@@ -57,25 +72,58 @@ def ising_walker(L, T, J=1.0, H=0.0, burn_in=1000, steps=10000):
         else:
             energies[iteration + 1] = energies[iteration]
             magnetizations[iteration + 1] = magnetizations[iteration]
+
+    # Plot energies and magnetizations
+    if plot:
+        plt.figure(figsize=(8, 6))
+        plt.plot(energies)
+        plt.title("energies")
+        plt.savefig("energies")
+
+        plt.figure(figsize=(8, 6))
+        plt.plot(magnetizations)
+        plt.title("magnetizations")
+        plt.savefig("magnetizations")
     
     return energies, magnetizations
 
 
-L = 16
-T = 1.0
+def ising_walker_parallel(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000):
+    """
+    Perform parallel Metropolis sampling at temperature T.
+    """
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
 
-energies, magnetizations = ising_walker(L, T, steps=100000, burn_in=10000)
+    energies, magnetizations = ising_walker(L, T, J, H, burn_in, steps_per_core)
 
-print(energies)
-plt.figure(figsize=(8, 6))
-plt.plot(energies)
-plt.title("energies")
-plt.savefig("energies")
-plt.show()
+    calc = ParallelMeanVariance(size=2)
+    calc.add_data(0, energies)
+    calc.add_data(1, magnetizations)
 
-print(magnetizations)
-plt.figure(figsize=(8, 6))
-plt.plot(magnetizations)
-plt.title("magnetizations")
-plt.savefig("magnetizations")
-plt.show()
+    _, mean, variance = calc.collect(comm=comm, mode="gather")
+
+    if rank == 0:
+        mean_energy = mean[0]
+        mean_magnetization = mean[1]
+        var_energy = variance[0]
+        var_magnetization = variance[1]
+
+        # The heat capacity and magnetic susceptibility is in units of kB
+        return mean_energy, mean_magnetization, var_energy / (T**2), var_magnetization / T    
+
+
+    
+if __name__ == "__main__":
+    L = 16
+    T = 1.0
+
+    mean_energy, mean_magnetization, heat_capacity, magnetic_susceptibility = ising_walker_parallel(L, T)
+
+    print("Mean energy: ", mean_energy)
+    print("Mean magnetization: ", mean_magnetization)
+    print("Heat capacity: ", heat_capacity)
+    print("Magnetic susceptibility: ", magnetic_susceptibility)
+
+
+
