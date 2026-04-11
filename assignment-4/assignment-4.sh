@@ -23,10 +23,10 @@
 #SBATCH --distribution=block:block
 #
 # Specify (hard) runtime (HH:MM:SS)
-#SBATCH --time=01:00:00
+#SBATCH --time=10:00:00
 #
 # Job name
-#SBATCH --job-name=assignment-1
+#SBATCH --job-name=assignment-4
 #
 # Output file
 #SBATCH --output=slurm-%j.out
