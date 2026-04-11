@@ -16,11 +16,10 @@ from parallel_statistics import ParallelMeanVariance
 from numba import njit
 
 @njit
-def ising_walker(L, T, J=1.0, H=0.0, burn_in=1000, steps=10000):
+def ising_init(L, T, J=1.0, H=0.0, burn_in=1000):
     """
-    Perform Metropolis sampling at temperature T.
+    Initialize lattice and perform burn-in for the Ising model.
     """
-    # Initialize lattice
     lattice = np.empty((L, L), dtype=np.int64)
     for i in range(L):
         for j in range(L):
@@ -36,19 +35,26 @@ def ising_walker(L, T, J=1.0, H=0.0, burn_in=1000, steps=10000):
         if energy_difference <= 0 or np.random.rand() < np.exp(-energy_difference / T):
             lattice[i, j] *= -1
 
-    # Calculate energy and magnetization
-    energies = np.zeros(steps + 1)
+    # Calculate initial energy and magnetization
+    current_energy = 0.0
     for i in range(L):
         for j in range(L):
             spin = lattice[i, j]
             # Only sum right and down to avoid double-counting pairs
             neighbor_sum = (lattice[(i + 1) % L, j] + lattice[i, (j + 1) % L])
-            energies[0] += -J * spin * neighbor_sum - H * spin
+            current_energy += -J * spin * neighbor_sum - H * spin
 
-    magnetizations = np.zeros(steps + 1)
-    magnetizations[0] = np.sum(lattice)
+    current_magnetization = float(np.sum(lattice))
+    return lattice, current_energy, current_magnetization
 
-    # Sampling period
+@njit
+def ising_run_batch(lattice, current_energy, current_magnetization, L, T, J=1.0, H=0.0, steps=10000):
+    """
+    Run a batch of Metropolis steps for the Ising model.
+    """
+    energies = np.zeros(steps)
+    magnetizations = np.zeros(steps)
+    
     for iteration in range(steps):
         i = np.random.randint(0, L)
         j = np.random.randint(0, L)
@@ -57,13 +63,13 @@ def ising_walker(L, T, J=1.0, H=0.0, burn_in=1000, steps=10000):
         
         if energy_difference <= 0 or np.random.rand() < np.exp(-energy_difference / T):
             lattice[i, j] *= -1
-            energies[iteration + 1] = energies[iteration] + energy_difference
-            magnetizations[iteration + 1] = magnetizations[iteration] + 2 * lattice[i, j]
-        else:
-            energies[iteration + 1] = energies[iteration]
-            magnetizations[iteration + 1] = magnetizations[iteration]
-    
-    return energies, magnetizations
+            current_energy += energy_difference
+            current_magnetization += 2 * lattice[i, j]
+            
+        energies[iteration] = current_energy
+        magnetizations[iteration] = current_magnetization
+        
+    return current_energy, current_magnetization, energies, magnetizations
 
 def ising_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk=False):
     """
@@ -75,9 +81,28 @@ def ising_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_w
     rank = comm.Get_rank()
     calc = ParallelMeanVariance(size=2)
 
-    energies, magnetizations = ising_walker(L, T, J, H, burn_in, steps_per_core)
-    calc.add_data(0, energies)
-    calc.add_data(1, magnetizations)
+    lattice, current_energy, current_magnetization = ising_init(L, T, J, H, burn_in)
+    
+    batch_size = 1000000
+    all_energies = []
+    all_magnetizations = []
+    
+    calc.add_data(0, np.array([current_energy]))
+    calc.add_data(1, np.array([current_magnetization]))
+    if plot_walk and rank == 0:
+        all_energies.append(np.array([current_energy]))
+        all_magnetizations.append(np.array([current_magnetization]))
+        
+    for start_step in range(0, steps_per_core, batch_size):
+        steps = min(batch_size, steps_per_core - start_step)
+        current_energy, current_magnetization, energies, magnetizations = ising_run_batch(
+            lattice, current_energy, current_magnetization, L, T, J, H, steps)
+        calc.add_data(0, energies)
+        calc.add_data(1, magnetizations)
+        
+        if plot_walk and rank == 0:
+            all_energies.append(energies)
+            all_magnetizations.append(magnetizations)
 
     _, mean, var = calc.collect(comm=comm, mode="gather")
 
@@ -86,13 +111,13 @@ def ising_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_w
     # Plot energies and magnetizations for single walker
     if plot_walk and rank == 0:
         plt.figure(figsize=(8, 6))
-        plt.plot(energies)
+        plt.plot(np.concatenate(all_energies))
         plt.title("Ising - Energies")
         plt.savefig("ising_energies.png")
         plt.close()
 
         plt.figure(figsize=(8, 6))
-        plt.plot(magnetizations)
+        plt.plot(np.concatenate(all_magnetizations))
         plt.title("Ising - Magnetizations")
         plt.savefig("ising_magnetizations.png")
         plt.close()
@@ -110,11 +135,10 @@ def ising_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_w
         print("="*60)
 
 @njit
-def xy_walker(L, T, J=1.0, H=0.0, burn_in=1000, steps=10000):
+def xy_init(L, T, J=1.0, H=0.0, burn_in=1000):
     """
-    Perform Metropolis sampling for the XY model at temperature T.
+    Initialize lattice and perform burn-in for the XY model.
     """
-    # Initialize lattice
     lattice = np.empty((L, L), dtype=np.float64)
     for i in range(L):
         for j in range(L):
@@ -145,7 +169,7 @@ def xy_walker(L, T, J=1.0, H=0.0, burn_in=1000, steps=10000):
             lattice[i, j] = theta_new
 
     # Calculate initial energy and magnetization
-    energies = np.zeros(steps + 1)
+    current_energy = 0.0
     Mx = 0.0
     My = 0.0
     for i in range(L):
@@ -154,14 +178,20 @@ def xy_walker(L, T, J=1.0, H=0.0, burn_in=1000, steps=10000):
             # Only sum right and down to avoid double-counting pairs
             theta_right = lattice[i, (j + 1) % L]
             theta_down = lattice[(i + 1) % L, j]
-            energies[0] += -J * np.cos(theta - theta_right) - J * np.cos(theta - theta_down) - H * np.cos(theta)
+            current_energy += -J * np.cos(theta - theta_right) - J * np.cos(theta - theta_down) - H * np.cos(theta)
             Mx += np.cos(theta)
             My += np.sin(theta)
 
-    magnetizations = np.zeros(steps + 1)
-    magnetizations[0] = np.sqrt(Mx**2 + My**2)
+    return lattice, current_energy, Mx, My
 
-    # Sampling period
+@njit
+def xy_run_batch(lattice, current_energy, Mx, My, L, T, J=1.0, H=0.0, steps=10000):
+    """
+    Run a batch of Metropolis steps for the XY model.
+    """
+    energies = np.zeros(steps)
+    magnetizations = np.zeros(steps)
+    
     for iteration in range(steps):
         i = np.random.randint(0, L)
         j = np.random.randint(0, L)
@@ -184,15 +214,14 @@ def xy_walker(L, T, J=1.0, H=0.0, burn_in=1000, steps=10000):
         
         if energy_difference <= 0 or np.random.rand() < np.exp(-energy_difference / T):
             lattice[i, j] = theta_new
-            energies[iteration + 1] = energies[iteration] + energy_difference
+            current_energy += energy_difference
             Mx = Mx - np.cos(theta_old) + np.cos(theta_new)
             My = My - np.sin(theta_old) + np.sin(theta_new)
-            magnetizations[iteration + 1] = np.sqrt(Mx**2 + My**2)
-        else:
-            energies[iteration + 1] = energies[iteration]
-            magnetizations[iteration + 1] = magnetizations[iteration]
-    
-    return energies, magnetizations
+            
+        energies[iteration] = current_energy
+        magnetizations[iteration] = np.sqrt(Mx**2 + My**2)
+        
+    return current_energy, Mx, My, energies, magnetizations
 
 def xy_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk=False):
     """
@@ -204,9 +233,28 @@ def xy_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk
     rank = comm.Get_rank()
     calc = ParallelMeanVariance(size=2)
 
-    energies, magnetizations = xy_walker(L, T, J, H, burn_in, steps_per_core)
-    calc.add_data(0, energies)
-    calc.add_data(1, magnetizations)
+    lattice, current_energy, Mx, My = xy_init(L, T, J, H, burn_in)
+    
+    batch_size = 1000000
+    all_energies = []
+    all_magnetizations = []
+    
+    calc.add_data(0, np.array([current_energy]))
+    calc.add_data(1, np.array([np.sqrt(Mx**2 + My**2)]))
+    if plot_walk and rank == 0:
+        all_energies.append(np.array([current_energy]))
+        all_magnetizations.append(np.array([np.sqrt(Mx**2 + My**2)]))
+
+    for start_step in range(0, steps_per_core, batch_size):
+        steps = min(batch_size, steps_per_core - start_step)
+        current_energy, Mx, My, energies, magnetizations = xy_run_batch(
+            lattice, current_energy, Mx, My, L, T, J, H, steps)
+        calc.add_data(0, energies)
+        calc.add_data(1, magnetizations)
+        
+        if plot_walk and rank == 0:
+            all_energies.append(energies)
+            all_magnetizations.append(magnetizations)
 
     _, mean, var = calc.collect(comm=comm, mode="gather")
 
@@ -215,13 +263,13 @@ def xy_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk
     # Plot energies and magnetizations for single walker
     if plot_walk and rank == 0:
         plt.figure(figsize=(8, 6))
-        plt.plot(energies)
+        plt.plot(np.concatenate(all_energies))
         plt.title("XY Model - Energies")
         plt.savefig("xy_energies.png")
         plt.close()
 
         plt.figure(figsize=(8, 6))
-        plt.plot(magnetizations)
+        plt.plot(np.concatenate(all_magnetizations))
         plt.title("XY Model - Magnetizations")
         plt.savefig("xy_magnetizations.png")
         plt.close()
@@ -239,20 +287,22 @@ def xy_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk
         print("="*60)
 
 if __name__ == "__main__":
+    """
     for T in np.linspace(1.0,3.0,num=100):
-        ising_wrapper(L=16, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**8, plot_walk=False)
-        xy_wrapper(L=16, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**8, plot_walk=False)
+        ising_wrapper(L=16, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**9, plot_walk=False)
+        ising_wrapper(L=32, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**9, plot_walk=False)
+        ising_wrapper(L=64, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**9, plot_walk=False)
+        ising_wrapper(L=128, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**9, plot_walk=False)
+        ising_wrapper(L=256, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**9, plot_walk=False)
 
-    for T in np.linspace(1.0,3.0,num=100):
-        ising_wrapper(L=32, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**8, plot_walk=False)
-        xy_wrapper(L=32, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**8, plot_walk=False)
-
-    for T in np.linspace(1.0,3.0,num=100):
-        ising_wrapper(L=64, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**8, plot_walk=False)
-        xy_wrapper(L=64, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**8, plot_walk=False)
-
-    for T in np.linspace(1.0,3.0,num=100):
-        ising_wrapper(L=128, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**8, plot_walk=False)
-        xy_wrapper(L=128, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**8, plot_walk=False)
+    for T in np.linspace(0.01,2.0,num=100):
+        xy_wrapper(L=16, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**9, plot_walk=False)
+        xy_wrapper(L=32, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**9, plot_walk=False)
+        xy_wrapper(L=64, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**9, plot_walk=False)
+        xy_wrapper(L=128, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**9, plot_walk=False)
+        xy_wrapper(L=256, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**9, plot_walk=False)  
+    """
+    ising_wrapper(L=16, T=1.0, J=1.0, H=0.0, burn_in=1*(10**5), steps_per_core=1*(10**9), plot_walk=False)
+    xy_wrapper(L=16, T=1.0, J=1.0, H=0.0, burn_in=1*(10**5), steps_per_core=1*(10**9), plot_walk=False)
 
 
