@@ -192,7 +192,8 @@ def ising_run_batch_wolff(lattice, current_energy, current_magnetization, L, T, 
                 if not in_cluster[ni, nj]:
                     delta_E += 2.0 * J * s_old * lattice[ni, nj]
                     
-            in_cluster[ci, cj] = False
+        for c in range(cluster_ptr):
+            in_cluster[cluster_i[c], cluster_j[c]] = False
             
         delta_E += cluster_ptr * 2.0 * H * s_old
         
@@ -535,7 +536,8 @@ def xy_run_batch_wolff(lattice, current_energy, Mx, My, L, T, J=1.0, H=0.0, step
             Mx = Mx - np.cos(theta_old) + np.cos(theta_new)
             My = My - np.sin(theta_old) + np.sin(theta_new)
             
-            in_cluster[ci, cj] = False
+        for c in range(cluster_ptr):
+            in_cluster[cluster_i[c], cluster_j[c]] = False
             
         current_energy += delta_E
         
