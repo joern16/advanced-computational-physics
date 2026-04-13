@@ -652,22 +652,23 @@ def xy_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk
         print("="*60)
 
 if __name__ == "__main__":
-    """
-    for T in np.linspace(1.0,3.0,num=100):
-        ising_wrapper(L=16, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**9, plot_walk=False)
-        ising_wrapper(L=32, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**9, plot_walk=False)
-        ising_wrapper(L=64, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**9, plot_walk=False)
-        ising_wrapper(L=128, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**9, plot_walk=False)
-        ising_wrapper(L=256, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**9, plot_walk=False)
+    
+    for T in np.linspace(1.0,3.0,num=50):
+        ising_wrapper(L=16, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**6, plot_walk=False)
+        #ising_wrapper(L=32, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**4, plot_walk=False)
+        ising_wrapper(L=64, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**6, plot_walk=False)
+        #ising_wrapper(L=128, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**4, plot_walk=False)
+        ising_wrapper(L=256, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**6, plot_walk=False)
+        ising_wrapper(L=1024, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**6, plot_walk=False)
 
-    for T in np.linspace(0.01,2.0,num=100):
-        xy_wrapper(L=16, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**9, plot_walk=False)
-        xy_wrapper(L=32, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**9, plot_walk=False)
-        xy_wrapper(L=64, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**9, plot_walk=False)
-        xy_wrapper(L=128, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**9, plot_walk=False)
-        xy_wrapper(L=256, T=T, J=1.0, H=0.0, burn_in=10**5, steps_per_core=10**9, plot_walk=False)  
-    """
-    ising_wrapper(L=16, T=1.0, J=1.0, H=0.0, burn_in=1*(10**5), steps_per_core=1*(10**9), plot_walk=False, method="wolff")
-    xy_wrapper(L=16, T=1.0, J=1.0, H=0.0, burn_in=1*(10**5), steps_per_core=1*(10**9), plot_walk=False, method="wolff")
+    for T in np.linspace(0.01,2.0,num=50):
+        xy_wrapper(L=16, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**6, plot_walk=False)
+        #xy_wrapper(L=32, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**4, plot_walk=False)
+        xy_wrapper(L=64, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**6, plot_walk=False)
+        #xy_wrapper(L=128, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**4, plot_walk=False)
+        xy_wrapper(L=256, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**6, plot_walk=False)  
+        xy_wrapper(L=1024, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**6, plot_walk=False)   
+    #ising_wrapper(L=256, T=2.0, J=1.0, H=0.0, burn_in=1*(10**3), steps_per_core=1*(10**4), plot_walk=False, method="wolff")
+    #xy_wrapper(L=256, T=2.0, J=1.0, H=0.0, burn_in=1*(10**3), steps_per_core=1*(10**4), plot_walk=False, method="wolff")
 
 
