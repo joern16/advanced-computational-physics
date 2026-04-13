@@ -107,7 +107,7 @@ def ising_run_batch(lattice, current_energy, current_magnetization, L, T, J=1.0,
             current_magnetization += 2 * lattice[i, j]
             
         energies[iteration] = current_energy
-        magnetizations[iteration] = current_magnetization
+        magnetizations[iteration] = abs(current_magnetization)
         
     return current_energy, current_magnetization, energies, magnetizations
 
@@ -201,7 +201,7 @@ def ising_run_batch_wolff(lattice, current_energy, current_magnetization, L, T, 
         current_magnetization += cluster_ptr * 2 * s_new
         
         energies[iteration] = current_energy
-        magnetizations[iteration] = current_magnetization
+        magnetizations[iteration] = abs(current_magnetization)
         
     return current_energy, current_magnetization, energies, magnetizations
 
@@ -218,15 +218,15 @@ def ising_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_w
     use_wolff = (method == "wolff")
     lattice, current_energy, current_magnetization = ising_init(L, T, J, H, burn_in, use_wolff)
     
-    batch_size = 1000000
+    batch_size = 10000
     all_energies = []
     all_magnetizations = []
     
     calc.add_data(0, np.array([current_energy]))
-    calc.add_data(1, np.array([current_magnetization]))
+    calc.add_data(1, np.array([abs(current_magnetization)]))
     if plot_walk and rank == 0:
         all_energies.append(np.array([current_energy]))
-        all_magnetizations.append(np.array([current_magnetization]))
+        all_magnetizations.append(np.array([abs(current_magnetization)]))
         
     for start_step in range(0, steps_per_core, batch_size):
         steps = min(batch_size, steps_per_core - start_step)
@@ -548,6 +548,9 @@ def xy_run_batch_wolff(lattice, current_energy, Mx, My, L, T, J=1.0, H=0.0, step
 
 @njit
 def xy_spin_correlation(lattice, L):
+    """
+    Calculate the spin correlation function for the XY model.
+    """
     max_r = L // 2
     correlations = np.zeros(max_r + 1)
     
@@ -574,7 +577,7 @@ def xy_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk
     use_wolff = (method == "wolff")
     lattice, current_energy, Mx, My = xy_init(L, T, J, H, burn_in, use_wolff)
     
-    batch_size = 1000000
+    batch_size = 10000
     all_energies = []
     all_magnetizations = []
     
@@ -653,22 +656,15 @@ def xy_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk
 
 if __name__ == "__main__":
     
-    for T in np.linspace(1.0,3.0,num=50):
-        ising_wrapper(L=16, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**6, plot_walk=False)
-        #ising_wrapper(L=32, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**4, plot_walk=False)
-        ising_wrapper(L=64, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**6, plot_walk=False)
-        #ising_wrapper(L=128, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**4, plot_walk=False)
-        ising_wrapper(L=256, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**6, plot_walk=False)
-        ising_wrapper(L=1024, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**6, plot_walk=False)
+    # For Metropolis, 1 step is 1 spin flip attempt, so we scale by L**2 to achieve adequate sweeps.
+    # We recommend ~1000 sweeps for burn-in and ~10,000 for data collection per core.
+    
+    for T in np.linspace(1.0, 3.0, num=50):
+        for L in [16, 64, 256, 1024]:
+            ising_wrapper(L=L, T=T, J=1.0, H=0.0, burn_in=100*(L**2), steps_per_core=1000*(L**2), plot_walk=False)
 
-    for T in np.linspace(0.01,2.0,num=50):
-        xy_wrapper(L=16, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**6, plot_walk=False)
-        #xy_wrapper(L=32, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**4, plot_walk=False)
-        xy_wrapper(L=64, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**6, plot_walk=False)
-        #xy_wrapper(L=128, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**4, plot_walk=False)
-        xy_wrapper(L=256, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**6, plot_walk=False)  
-        xy_wrapper(L=1024, T=T, J=1.0, H=0.0, burn_in=10**3, steps_per_core=10**6, plot_walk=False)   
-    #ising_wrapper(L=256, T=2.0, J=1.0, H=0.0, burn_in=1*(10**3), steps_per_core=1*(10**4), plot_walk=False, method="wolff")
-    #xy_wrapper(L=256, T=2.0, J=1.0, H=0.0, burn_in=1*(10**3), steps_per_core=1*(10**4), plot_walk=False, method="wolff")
+    for T in np.linspace(0.01, 2.0, num=50):
+        for L in [16, 64, 256, 1024]:
+            xy_wrapper(L=L, T=T, J=1.0, H=0.0, burn_in=100*(L**2), steps_per_core=1000*(L**2), plot_walk=False)
 
 
