@@ -31,39 +31,44 @@ def ising_init(L, T, J=1.0, H=0.0, burn_in=1000, use_wolff=False):
         stack_i = np.zeros(max_size, dtype=np.int32)
         stack_j = np.zeros(max_size, dtype=np.int32)
         for _ in range(burn_in):
-            i = np.random.randint(0, L)
-            j = np.random.randint(0, L)
-            
-            s_old = lattice[i, j]
-            s_new = -s_old
-            
-            lattice[i, j] = s_new
-            
-            stack_i[0] = i
-            stack_j[0] = j
-            stack_ptr = 1
-            
-            while stack_ptr > 0:
-                stack_ptr -= 1
-                curr_i = stack_i[stack_ptr]
-                curr_j = stack_j[stack_ptr]
+            spins_flipped = 0
+            while spins_flipped < L * L:
+                i = np.random.randint(0, L)
+                j = np.random.randint(0, L)
                 
-                for k in range(4):
-                    if k == 0:
-                        ni, nj = (curr_i + 1) % L, curr_j
-                    elif k == 1:
-                        ni, nj = (curr_i - 1) % L, curr_j
-                    elif k == 2:
-                        ni, nj = curr_i, (curr_j + 1) % L
-                    else:
-                        ni, nj = curr_i, (curr_j - 1) % L
-                        
-                    if lattice[ni, nj] == s_old:
-                        if np.random.rand() < p_add:
-                            lattice[ni, nj] = s_new
-                            stack_i[stack_ptr] = ni
-                            stack_j[stack_ptr] = nj
-                            stack_ptr += 1
+                s_old = lattice[i, j]
+                s_new = -s_old
+                
+                lattice[i, j] = s_new
+                
+                stack_i[0] = i
+                stack_j[0] = j
+                stack_ptr = 1
+                cluster_ptr = 1
+                
+                while stack_ptr > 0:
+                    stack_ptr -= 1
+                    curr_i = stack_i[stack_ptr]
+                    curr_j = stack_j[stack_ptr]
+                    
+                    for k in range(4):
+                        if k == 0:
+                            ni, nj = (curr_i + 1) % L, curr_j
+                        elif k == 1:
+                            ni, nj = (curr_i - 1) % L, curr_j
+                        elif k == 2:
+                            ni, nj = curr_i, (curr_j + 1) % L
+                        else:
+                            ni, nj = curr_i, (curr_j - 1) % L
+                            
+                        if lattice[ni, nj] == s_old:
+                            if np.random.rand() < p_add:
+                                lattice[ni, nj] = s_new
+                                stack_i[stack_ptr] = ni
+                                stack_j[stack_ptr] = nj
+                                stack_ptr += 1
+                                cluster_ptr += 1
+                spins_flipped += cluster_ptr
     else:
         # Burn-in period
         for _ in range(burn_in):
@@ -129,77 +134,80 @@ def ising_run_batch_wolff(lattice, current_energy, current_magnetization, L, T, 
     in_cluster = np.zeros((L, L), dtype=np.bool_)
     
     for iteration in range(steps):
-        i = np.random.randint(0, L)
-        j = np.random.randint(0, L)
-        
-        s_old = lattice[i, j]
-        s_new = -s_old
-        
-        lattice[i, j] = s_new
-        in_cluster[i, j] = True
-        
-        stack_i[0] = i
-        stack_j[0] = j
-        stack_ptr = 1
-        
-        cluster_i[0] = i
-        cluster_j[0] = j
-        cluster_ptr = 1
-        
-        while stack_ptr > 0:
-            stack_ptr -= 1
-            curr_i = stack_i[stack_ptr]
-            curr_j = stack_j[stack_ptr]
+        spins_flipped = 0
+        while spins_flipped < L * L:
+            i = np.random.randint(0, L)
+            j = np.random.randint(0, L)
             
-            for k in range(4):
-                if k == 0:
-                    ni, nj = (curr_i + 1) % L, curr_j
-                elif k == 1:
-                    ni, nj = (curr_i - 1) % L, curr_j
-                elif k == 2:
-                    ni, nj = curr_i, (curr_j + 1) % L
-                else:
-                    ni, nj = curr_i, (curr_j - 1) % L
-                    
-                if lattice[ni, nj] == s_old:
-                    if np.random.rand() < p_add:
-                        lattice[ni, nj] = s_new
-                        in_cluster[ni, nj] = True
-                        
-                        stack_i[stack_ptr] = ni
-                        stack_j[stack_ptr] = nj
-                        stack_ptr += 1
-                        
-                        cluster_i[cluster_ptr] = ni
-                        cluster_j[cluster_ptr] = nj
-                        cluster_ptr += 1
-                        
-        delta_E = 0.0
-        for c in range(cluster_ptr):
-            ci = cluster_i[c]
-            cj = cluster_j[c]
+            s_old = lattice[i, j]
+            s_new = -s_old
             
-            for k in range(4):
-                if k == 0:
-                    ni, nj = (ci + 1) % L, cj
-                elif k == 1:
-                    ni, nj = (ci - 1) % L, cj
-                elif k == 2:
-                    ni, nj = ci, (cj + 1) % L
-                else:
-                    ni, nj = ci, (cj - 1) % L
-                    
-                if not in_cluster[ni, nj]:
-                    delta_E += 2.0 * J * s_old * lattice[ni, nj]
-                    
-        for c in range(cluster_ptr):
-            in_cluster[cluster_i[c], cluster_j[c]] = False
+            lattice[i, j] = s_new
+            in_cluster[i, j] = True
             
-        delta_E += cluster_ptr * 2.0 * H * s_old
-        
-        current_energy += delta_E
-        current_magnetization += cluster_ptr * 2 * s_new
-        
+            stack_i[0] = i
+            stack_j[0] = j
+            stack_ptr = 1
+            
+            cluster_i[0] = i
+            cluster_j[0] = j
+            cluster_ptr = 1
+            
+            while stack_ptr > 0:
+                stack_ptr -= 1
+                curr_i = stack_i[stack_ptr]
+                curr_j = stack_j[stack_ptr]
+                
+                for k in range(4):
+                    if k == 0:
+                        ni, nj = (curr_i + 1) % L, curr_j
+                    elif k == 1:
+                        ni, nj = (curr_i - 1) % L, curr_j
+                    elif k == 2:
+                        ni, nj = curr_i, (curr_j + 1) % L
+                    else:
+                        ni, nj = curr_i, (curr_j - 1) % L
+                        
+                    if lattice[ni, nj] == s_old:
+                        if np.random.rand() < p_add:
+                            lattice[ni, nj] = s_new
+                            in_cluster[ni, nj] = True
+                            
+                            stack_i[stack_ptr] = ni
+                            stack_j[stack_ptr] = nj
+                            stack_ptr += 1
+                            
+                            cluster_i[cluster_ptr] = ni
+                            cluster_j[cluster_ptr] = nj
+                            cluster_ptr += 1
+                            
+            delta_E = 0.0
+            for c in range(cluster_ptr):
+                ci = cluster_i[c]
+                cj = cluster_j[c]
+                
+                for k in range(4):
+                    if k == 0:
+                        ni, nj = (ci + 1) % L, cj
+                    elif k == 1:
+                        ni, nj = (ci - 1) % L, cj
+                    elif k == 2:
+                        ni, nj = ci, (cj + 1) % L
+                    else:
+                        ni, nj = ci, (cj - 1) % L
+                        
+                    if not in_cluster[ni, nj]:
+                        delta_E += 2.0 * J * s_old * lattice[ni, nj]
+                        
+            for c in range(cluster_ptr):
+                in_cluster[cluster_i[c], cluster_j[c]] = False
+                
+            delta_E += cluster_ptr * 2.0 * H * s_old
+            
+            current_energy += delta_E
+            current_magnetization += cluster_ptr * 2 * s_new
+            spins_flipped += cluster_ptr
+            
         energies[iteration] = current_energy
         magnetizations[iteration] = abs(current_magnetization)
         
@@ -296,63 +304,66 @@ def xy_init(L, T, J=1.0, H=0.0, burn_in=1000, use_wolff=False):
         in_cluster = np.zeros((L, L), dtype=np.bool_)
         
         for _ in range(burn_in):
-            i = np.random.randint(0, L)
-            j = np.random.randint(0, L)
-            
-            phi = np.random.rand() * np.pi
-            
-            theta_old = lattice[i, j]
-            theta_new = (2.0 * phi - theta_old) % (2.0 * np.pi)
-            
-            lattice[i, j] = theta_new
-            in_cluster[i, j] = True
-            
-            stack_i[0] = i
-            stack_j[0] = j
-            stack_ptr = 1
-            
-            cluster_i[0] = i
-            cluster_j[0] = j
-            cluster_ptr = 1
-            
-            while stack_ptr > 0:
-                stack_ptr -= 1
-                curr_i = stack_i[stack_ptr]
-                curr_j = stack_j[stack_ptr]
-                curr_theta_old = (2.0 * phi - lattice[curr_i, curr_j]) % (2.0 * np.pi)
+            spins_flipped = 0
+            while spins_flipped < L * L:
+                i = np.random.randint(0, L)
+                j = np.random.randint(0, L)
                 
-                for k in range(4):
-                    if k == 0:
-                        ni, nj = (curr_i + 1) % L, curr_j
-                    elif k == 1:
-                        ni, nj = (curr_i - 1) % L, curr_j
-                    elif k == 2:
-                        ni, nj = curr_i, (curr_j + 1) % L
-                    else:
-                        ni, nj = curr_i, (curr_j - 1) % L
-                        
-                    if not in_cluster[ni, nj]:
-                        nj_theta_old = lattice[ni, nj]
-                        
-                        r_proj_i = np.sin(curr_theta_old - phi)
-                        r_proj_j = np.sin(nj_theta_old - phi)
-                        
-                        if r_proj_i * r_proj_j > 0:
-                            p_add = 1.0 - np.exp(-2.0 * J * r_proj_i * r_proj_j / T)
-                            if np.random.rand() < p_add:
-                                lattice[ni, nj] = (2.0 * phi - lattice[ni, nj]) % (2.0 * np.pi)
-                                in_cluster[ni, nj] = True
-                                
-                                stack_i[stack_ptr] = ni
-                                stack_j[stack_ptr] = nj
-                                stack_ptr += 1
-                                
-                                cluster_i[cluster_ptr] = ni
-                                cluster_j[cluster_ptr] = nj
-                                cluster_ptr += 1
-                                
-            for c in range(cluster_ptr):
-                in_cluster[cluster_i[c], cluster_j[c]] = False
+                phi = np.random.rand() * np.pi
+                
+                theta_old = lattice[i, j]
+                theta_new = (2.0 * phi - theta_old) % (2.0 * np.pi)
+                
+                lattice[i, j] = theta_new
+                in_cluster[i, j] = True
+                
+                stack_i[0] = i
+                stack_j[0] = j
+                stack_ptr = 1
+                
+                cluster_i[0] = i
+                cluster_j[0] = j
+                cluster_ptr = 1
+                
+                while stack_ptr > 0:
+                    stack_ptr -= 1
+                    curr_i = stack_i[stack_ptr]
+                    curr_j = stack_j[stack_ptr]
+                    curr_theta_old = (2.0 * phi - lattice[curr_i, curr_j]) % (2.0 * np.pi)
+                    
+                    for k in range(4):
+                        if k == 0:
+                            ni, nj = (curr_i + 1) % L, curr_j
+                        elif k == 1:
+                            ni, nj = (curr_i - 1) % L, curr_j
+                        elif k == 2:
+                            ni, nj = curr_i, (curr_j + 1) % L
+                        else:
+                            ni, nj = curr_i, (curr_j - 1) % L
+                            
+                        if not in_cluster[ni, nj]:
+                            nj_theta_old = lattice[ni, nj]
+                            
+                            r_proj_i = np.sin(curr_theta_old - phi)
+                            r_proj_j = np.sin(nj_theta_old - phi)
+                            
+                            if r_proj_i * r_proj_j > 0:
+                                p_add = 1.0 - np.exp(-2.0 * J * r_proj_i * r_proj_j / T)
+                                if np.random.rand() < p_add:
+                                    lattice[ni, nj] = (2.0 * phi - lattice[ni, nj]) % (2.0 * np.pi)
+                                    in_cluster[ni, nj] = True
+                                    
+                                    stack_i[stack_ptr] = ni
+                                    stack_j[stack_ptr] = nj
+                                    stack_ptr += 1
+                                    
+                                    cluster_i[cluster_ptr] = ni
+                                    cluster_j[cluster_ptr] = nj
+                                    cluster_ptr += 1
+                                    
+                for c in range(cluster_ptr):
+                    in_cluster[cluster_i[c], cluster_j[c]] = False
+                spins_flipped += cluster_ptr
     else:
         # Burn-in period
         for _ in range(burn_in):
@@ -449,98 +460,101 @@ def xy_run_batch_wolff(lattice, current_energy, Mx, My, L, T, J=1.0, H=0.0, step
     in_cluster = np.zeros((L, L), dtype=np.bool_)
     
     for iteration in range(steps):
-        i = np.random.randint(0, L)
-        j = np.random.randint(0, L)
-        
-        phi = np.random.rand() * np.pi
-        
-        theta_old = lattice[i, j]
-        theta_new = (2.0 * phi - theta_old) % (2.0 * np.pi)
-        
-        lattice[i, j] = theta_new
-        in_cluster[i, j] = True
-        
-        stack_i[0] = i
-        stack_j[0] = j
-        stack_ptr = 1
-        
-        cluster_i[0] = i
-        cluster_j[0] = j
-        cluster_ptr = 1
-        
-        while stack_ptr > 0:
-            stack_ptr -= 1
-            curr_i = stack_i[stack_ptr]
-            curr_j = stack_j[stack_ptr]
+        spins_flipped = 0
+        while spins_flipped < L * L:
+            i = np.random.randint(0, L)
+            j = np.random.randint(0, L)
             
-            curr_theta_old = (2.0 * phi - lattice[curr_i, curr_j]) % (2.0 * np.pi)
+            phi = np.random.rand() * np.pi
             
-            for k in range(4):
-                if k == 0:
-                    ni, nj = (curr_i + 1) % L, curr_j
-                elif k == 1:
-                    ni, nj = (curr_i - 1) % L, curr_j
-                elif k == 2:
-                    ni, nj = curr_i, (curr_j + 1) % L
-                else:
-                    ni, nj = curr_i, (curr_j - 1) % L
-                    
-                if not in_cluster[ni, nj]:
-                    nj_theta_old = lattice[ni, nj]
-                    
-                    r_proj_i = np.sin(curr_theta_old - phi)
-                    r_proj_j = np.sin(nj_theta_old - phi)
-                    
-                    if r_proj_i * r_proj_j > 0:
-                        p_add = 1.0 - np.exp(-2.0 * J * r_proj_i * r_proj_j / T)
-                        if np.random.rand() < p_add:
-                            lattice[ni, nj] = (2.0 * phi - lattice[ni, nj]) % (2.0 * np.pi)
-                            in_cluster[ni, nj] = True
-                            
-                            stack_i[stack_ptr] = ni
-                            stack_j[stack_ptr] = nj
-                            stack_ptr += 1
-                            
-                            cluster_i[cluster_ptr] = ni
-                            cluster_j[cluster_ptr] = nj
-                            cluster_ptr += 1
-                            
-        delta_E = 0.0
-        for c in range(cluster_ptr):
-            ci = cluster_i[c]
-            cj = cluster_j[c]
+            theta_old = lattice[i, j]
+            theta_new = (2.0 * phi - theta_old) % (2.0 * np.pi)
             
-            theta_new = lattice[ci, cj]
-            theta_old = (2.0 * phi - theta_new) % (2.0 * np.pi)
+            lattice[i, j] = theta_new
+            in_cluster[i, j] = True
             
-            for k in range(4):
-                if k == 0:
-                    ni, nj = (ci + 1) % L, cj
-                elif k == 1:
-                    ni, nj = (ci - 1) % L, cj
-                elif k == 2:
-                    ni, nj = ci, (cj + 1) % L
-                else:
-                    ni, nj = ci, (cj - 1) % L
-                    
-                if not in_cluster[ni, nj]:
-                    nj_theta = lattice[ni, nj]
-                    E_old = -J * np.cos(theta_old - nj_theta)
-                    E_new = -J * np.cos(theta_new - nj_theta)
-                    delta_E += E_new - E_old
+            stack_i[0] = i
+            stack_j[0] = j
+            stack_ptr = 1
             
-            E_H_old = -H * np.cos(theta_old)
-            E_H_new = -H * np.cos(theta_new)
-            delta_E += E_H_new - E_H_old
+            cluster_i[0] = i
+            cluster_j[0] = j
+            cluster_ptr = 1
             
-            Mx = Mx - np.cos(theta_old) + np.cos(theta_new)
-            My = My - np.sin(theta_old) + np.sin(theta_new)
+            while stack_ptr > 0:
+                stack_ptr -= 1
+                curr_i = stack_i[stack_ptr]
+                curr_j = stack_j[stack_ptr]
+                
+                curr_theta_old = (2.0 * phi - lattice[curr_i, curr_j]) % (2.0 * np.pi)
+                
+                for k in range(4):
+                    if k == 0:
+                        ni, nj = (curr_i + 1) % L, curr_j
+                    elif k == 1:
+                        ni, nj = (curr_i - 1) % L, curr_j
+                    elif k == 2:
+                        ni, nj = curr_i, (curr_j + 1) % L
+                    else:
+                        ni, nj = curr_i, (curr_j - 1) % L
+                        
+                    if not in_cluster[ni, nj]:
+                        nj_theta_old = lattice[ni, nj]
+                        
+                        r_proj_i = np.sin(curr_theta_old - phi)
+                        r_proj_j = np.sin(nj_theta_old - phi)
+                        
+                        if r_proj_i * r_proj_j > 0:
+                            p_add = 1.0 - np.exp(-2.0 * J * r_proj_i * r_proj_j / T)
+                            if np.random.rand() < p_add:
+                                lattice[ni, nj] = (2.0 * phi - lattice[ni, nj]) % (2.0 * np.pi)
+                                in_cluster[ni, nj] = True
+                                
+                                stack_i[stack_ptr] = ni
+                                stack_j[stack_ptr] = nj
+                                stack_ptr += 1
+                                
+                                cluster_i[cluster_ptr] = ni
+                                cluster_j[cluster_ptr] = nj
+                                cluster_ptr += 1
+                                
+            delta_E = 0.0
+            for c in range(cluster_ptr):
+                ci = cluster_i[c]
+                cj = cluster_j[c]
+                
+                theta_new = lattice[ci, cj]
+                theta_old = (2.0 * phi - theta_new) % (2.0 * np.pi)
+                
+                for k in range(4):
+                    if k == 0:
+                        ni, nj = (ci + 1) % L, cj
+                    elif k == 1:
+                        ni, nj = (ci - 1) % L, cj
+                    elif k == 2:
+                        ni, nj = ci, (cj + 1) % L
+                    else:
+                        ni, nj = ci, (cj - 1) % L
+                        
+                    if not in_cluster[ni, nj]:
+                        nj_theta = lattice[ni, nj]
+                        E_old = -J * np.cos(theta_old - nj_theta)
+                        E_new = -J * np.cos(theta_new - nj_theta)
+                        delta_E += E_new - E_old
+                
+                E_H_old = -H * np.cos(theta_old)
+                E_H_new = -H * np.cos(theta_new)
+                delta_E += E_H_new - E_H_old
+                
+                Mx = Mx - np.cos(theta_old) + np.cos(theta_new)
+                My = My - np.sin(theta_old) + np.sin(theta_new)
+                
+            for c in range(cluster_ptr):
+                in_cluster[cluster_i[c], cluster_j[c]] = False
+                
+            current_energy += delta_E
+            spins_flipped += cluster_ptr
             
-        for c in range(cluster_ptr):
-            in_cluster[cluster_i[c], cluster_j[c]] = False
-            
-        current_energy += delta_E
-        
         energies[iteration] = current_energy
         magnetizations[iteration] = np.sqrt(Mx**2 + My**2)
         
@@ -655,16 +669,23 @@ def xy_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk
         print("="*60)
 
 if __name__ == "__main__":
-    
+    """
     # For Metropolis, 1 step is 1 spin flip attempt, so we scale by L**2 to achieve adequate sweeps.
-    # We recommend ~1000 sweeps for burn-in and ~10,000 for data collection per core.
-    
     for T in np.linspace(1.0, 3.0, num=50):
         for L in [16, 64, 256, 1024]:
-            ising_wrapper(L=L, T=T, J=1.0, H=0.0, burn_in=100*(L**2), steps_per_core=1000*(L**2), plot_walk=False)
+            ising_wrapper(L=L, T=T, J=1.0, H=0.0, burn_in=100*(L**2), steps_per_core=1000*(L**2), plot_walk=False, method="metropolis")
 
     for T in np.linspace(0.01, 2.0, num=50):
         for L in [16, 64, 256, 1024]:
-            xy_wrapper(L=L, T=T, J=1.0, H=0.0, burn_in=100*(L**2), steps_per_core=1000*(L**2), plot_walk=False)
+            xy_wrapper(L=L, T=T, J=1.0, H=0.0, burn_in=100*(L**2), steps_per_core=1000*(L**2), plot_walk=False, method="metropolis")
+    """
+    # For Wolff a linear scaling in L is applied.
+    for T in np.linspace(1.0, 3.0, num=50):
+        for L in [16, 64, 256, 1024]:
+            ising_wrapper(L=L, T=T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk=False, method="wolff")
+
+    for T in np.linspace(0.01, 2.0, num=50):
+        for L in [16, 64, 256, 1024]:
+            xy_wrapper(L=L, T=T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk=False, method="wolff")
 
 
