@@ -578,7 +578,7 @@ def xy_spin_correlation(lattice, L):
         
     return correlations
 
-def xy_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk=False, method="metropolis"):
+def xy_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk=False, method="metropolis", calc_correlation=False):
     """
     Run Metropolis sampling in parallel and calculate mean energy, mean magnetization, heat capacity, and magnetic susceptibility for the XY model.
     """
@@ -601,8 +601,9 @@ def xy_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk
         all_energies.append(np.array([current_energy]))
         all_magnetizations.append(np.array([np.sqrt(Mx**2 + My**2)]))
 
-    sum_correlations = np.zeros(L // 2 + 1)
-    num_samples = 0
+    if calc_correlation:
+        sum_correlations = np.zeros(L // 2 + 1)
+        num_samples = 0
 
     for start_step in range(0, steps_per_core, batch_size):
         steps = min(batch_size, steps_per_core - start_step)
@@ -619,8 +620,9 @@ def xy_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk
         calc.add_data(0, energies)
         calc.add_data(1, magnetizations)
         
-        sum_correlations += xy_spin_correlation(lattice, L)
-        num_samples += 1
+        if calc_correlation:
+            sum_correlations += xy_spin_correlation(lattice, L)
+            num_samples += 1
         
         if plot_walk and rank == 0:
             all_energies.append(energies)
@@ -628,9 +630,10 @@ def xy_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk
 
     _, mean, var = calc.collect(comm=comm, mode="gather")
     
-    local_mean_corr = sum_correlations / num_samples
-    global_mean_corr = np.zeros_like(local_mean_corr)
-    comm.Reduce(local_mean_corr, global_mean_corr, op=MPI.SUM, root=0)
+    if calc_correlation:
+        local_mean_corr = sum_correlations / num_samples if num_samples > 0 else np.zeros_like(sum_correlations)
+        global_mean_corr = np.zeros_like(local_mean_corr)
+        comm.Reduce(local_mean_corr, global_mean_corr, op=MPI.SUM, root=0)
 
     time_taken = time.time() - start_time
 
@@ -650,8 +653,6 @@ def xy_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk
 
     # Return mean and variance (in units of kB)
     if rank == 0:
-        global_mean_corr /= comm.Get_size()
-        
         print("\n" + "="*60)
         print("            XY Model Results for T = " + str(T) + " and L = " + str(L))
         print("="*60)
@@ -660,12 +661,15 @@ def xy_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk
         print("Heat capacity: ", var[0] / (T**2))
         print("Magnetic susceptibility: ", var[1] / T)
         print("Time taken: ", time_taken)
-        print("-" * 60)
-        print("Spin-correlation C(r) vs r/L:")
-        print("  r/L   | C(r)")
-        print("  ----------------")
-        for r in range(L // 2 + 1):
-            print(f"  {r/L:<5.3f} | {global_mean_corr[r]:.5f}")
+        
+        if calc_correlation:
+            global_mean_corr /= comm.Get_size()
+            print("-" * 60)
+            print("Spin-correlation C(r) vs r/L:")
+            print("  r/L   | C(r)")
+            print("  ----------------")
+            for r in range(L // 2 + 1):
+                print(f"  {r/L:<5.3f} | {global_mean_corr[r]:.5f}")
         print("="*60)
 
 if __name__ == "__main__":
