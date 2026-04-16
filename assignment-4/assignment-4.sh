@@ -23,7 +23,7 @@
 #SBATCH --distribution=block:block
 #
 # Specify (hard) runtime (HH:MM:SS)
-#SBATCH --time=10:00:00
+#SBATCH --time=12:00:00
 #
 # Job name
 #SBATCH --job-name=assignment-4

@@ -678,14 +678,18 @@ if __name__ == "__main__":
     for T in np.linspace(0.01, 2.0, num=50):
         for L in [16, 64, 256, 1024]:
             xy_wrapper(L=L, T=T, J=1.0, H=0.0, burn_in=100*(L**2), steps_per_core=1000*(L**2), plot_walk=False, method="metropolis")
-    """
+    
     # For Wolff a linear scaling in L is applied.
-    for T in np.linspace(1.0, 3.0, num=50):
+    for T in np.linspace(1.0, 3.0, num=25):
         for L in [16, 64, 256, 1024]:
-            ising_wrapper(L=L, T=T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk=False, method="wolff")
+            ising_wrapper(L=L, T=T, J=1.0, H=0.0, burn_in=100, steps_per_core=1000, plot_walk=False, method="wolff")
 
-    for T in np.linspace(0.01, 2.0, num=50):
+    for T in np.linspace(0.01, 2.0, num=25):
         for L in [16, 64, 256, 1024]:
-            xy_wrapper(L=L, T=T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk=False, method="wolff")
+            xy_wrapper(L=L, T=T, J=1.0, H=0.0, burn_in=100, steps_per_core=1000, plot_walk=False, method="wolff")
+    """
+    for T in np.linspace(0.01, 2.0, num=25):
+        for L in [16, 64, 256, 1024]:
+            xy_wrapper(L=L, T=T, J=1.0, H=0.0, burn_in=1*(L**2)+1000, steps_per_core=10*(L**2)+10000, plot_walk=False, method="metropolis")
 
 
