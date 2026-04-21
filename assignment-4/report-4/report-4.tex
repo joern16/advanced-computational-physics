@@ -21,12 +21,12 @@
 
     \vspace{0.5cm}
 
-    {\LARGE\bfseries Assignment 3\par}
+    {\LARGE\bfseries Assignment 4\par}
 
     \vspace{0.5cm}
 
     \large Jörn Wilhelm\\
-    Glasgow, 18.\ March 2026
+    Glasgow, 21.\ April 2026
 
     \vspace{1cm}
 \end{center}
@@ -57,7 +57,8 @@ the specific heat does not diverge but spike. For $L=16$ such could be observed.
 For larger lattices, the algorithm did not fully converge in 
 $16\cdot1000\cdot L^2$. Reason for this is that each Metropolis step only flips one spin, making
 it almost impossible to reach the fully ordered state in reasonable time.
-This issue will be adressed later on.
+This issue will be adressed later on. An immediate fix would be to intialize the lattice in the ordered state, however
+this will break down for $T>T_c$ and the XY model.
 \begin{figure}[h!]
   \centering
   \includegraphics[width=\textwidth]{ising-metropolis.pdf}
@@ -66,8 +67,15 @@ This issue will be adressed later on.
 \end{figure}
 
 \noindent
-Further we explore the parallelism of the algorithm using \textit{Amdahls} law.
-\red{\ldots}
+Further we explore the parallelism of the algorithm using \textit{Amdahls} law. This is shown in figure \ref{fig:ising-metropolis-amdahl}
+, yielding a close to one parallelism $p=0.9954$ and inflection point at $n_{inf}=271.1\approx2^{7.76}$\,.
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=0.7\textwidth]{amdahl-metropolis-ising.pdf}
+  \caption{}
+  \label{fig:ising-metropolis-amdahl}
+\end{figure}
+
 
 \subsection{Wolff}
 To handle larger lattices the Wolff algorithm was implemented, flipping entire clusters.
@@ -84,8 +92,7 @@ the specific heat.
 \end{figure}
 
 \noindent
-The \textit{Amdahls} law plot 
-\red{\ldots}
+Again \textit{Amdahls} law yields a close to one parallelism $p=0.9957$ and inflection point at $n_{inf}=233.3\approx2^{7.78}$\,.
 
 
 \section{XY model}
@@ -105,11 +112,10 @@ Results obtained with standard Metropolis are shown in Figure \ref{fig:xy-metrop
 Observe, that for $L=16$ the mentioned expectations appear. Beyond that the system 
 cannot find its equilibrium state in reasonable time. Note, that the specific heat diverges
 due to being energy fluctuations divided by temperature, only saturating if the equilibrium state is found.
+\\\\
+Again \textit{Amdahls} law yields a close to one parallelism $p=0.9974$ and inflection point at $n_{inf}=382.0\approx2^{8.58}$\,.
 
-\noindent
-The \textit{Amdahls} law plot 
-\red{\ldots}
-
+\newpage
 \subsection{Wolff}
 Again a Wolff cluster algorithm was implemented to handle larger lattices. The results
 are shown in Figure \ref{fig:xy-wolff}. These match the predictions better.
@@ -121,16 +127,19 @@ are shown in Figure \ref{fig:xy-wolff}. These match the predictions better.
 \end{figure}
 
 \noindent
-The \textit{Amdahls} law plot 
-\red{\ldots}
+Again \textit{Amdahls} law yields a close to one parallelism $p=0.9985$ and inflection point at $n_{inf}=682.0\approx2^{9.4}$\,.
+
 
 \subsection{Spin Correlations}
-We expect a power law behavior below the critical temperature, exponential above and 
-long range order at the transition point. The correlation functions for 
-\red{\ldots}
+We expect a power law behavior below the critical temperature and an exponential decay above. The correlation functions for 
+$L=1024$ and $T=0.5,2.0$ are shown in figure \ref{fig:xy-correlations}. 
 The better converging Wolff algorithm was used to obtain these correlations.
-\begin{figure}
-  
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=0.48\textwidth]{xy-exp.pdf}
+  \includegraphics[width=0.48\textwidth]{xy-power.pdf}
+  \caption{}
+  \label{fig:xy-correlations}
 \end{figure}
 \\\\
 Find the repository under \url{https://github.com/joern16/advanced-computational-physics}.
