@@ -1,4 +1,6 @@
 #!/opt/software/anaconda/python-3.10.9/bin/python
+# pylint: disable=invalid-name, too-many-arguments, too-many-locals, too-many-branches, too-many-statements, too-many-nested-blocks, too-many-positional-arguments
+
 
 """
 Numerical evaluation of the Ising and XY model.
@@ -15,6 +17,7 @@ from parallel_statistics import ParallelMeanVariance
 
 from numba import njit
 
+
 @njit
 def ising_init(L, T, J=1.0, H=0.0, burn_in=1000, use_wolff=False):
     """
@@ -24,7 +27,7 @@ def ising_init(L, T, J=1.0, H=0.0, burn_in=1000, use_wolff=False):
     for i in range(L):
         for j in range(L):
             lattice[i, j] = 1 if np.random.rand() < 0.5 else -1
-            
+
     if use_wolff:
         p_add = 1.0 - np.exp(-2.0 * J / T)
         max_size = L * L
@@ -35,22 +38,22 @@ def ising_init(L, T, J=1.0, H=0.0, burn_in=1000, use_wolff=False):
             while spins_flipped < L * L:
                 i = np.random.randint(0, L)
                 j = np.random.randint(0, L)
-                
+
                 s_old = lattice[i, j]
                 s_new = -s_old
-                
+
                 lattice[i, j] = s_new
-                
+
                 stack_i[0] = i
                 stack_j[0] = j
                 stack_ptr = 1
                 cluster_ptr = 1
-                
+
                 while stack_ptr > 0:
                     stack_ptr -= 1
                     curr_i = stack_i[stack_ptr]
                     curr_j = stack_j[stack_ptr]
-                    
+
                     for k in range(4):
                         if k == 0:
                             ni, nj = (curr_i + 1) % L, curr_j
@@ -60,7 +63,7 @@ def ising_init(L, T, J=1.0, H=0.0, burn_in=1000, use_wolff=False):
                             ni, nj = curr_i, (curr_j + 1) % L
                         else:
                             ni, nj = curr_i, (curr_j - 1) % L
-                            
+
                         if lattice[ni, nj] == s_old:
                             if np.random.rand() < p_add:
                                 lattice[ni, nj] = s_new
@@ -74,10 +77,24 @@ def ising_init(L, T, J=1.0, H=0.0, burn_in=1000, use_wolff=False):
         for _ in range(burn_in):
             i = np.random.randint(0, L)
             j = np.random.randint(0, L)
-            energy_difference = 2 * lattice[i, j] * (J * (lattice[(i + 1) % L, j] + lattice[(i - 1) % L, j] + 
-                                                     lattice[i, (j + 1) % L] + lattice[i, (j - 1) % L]) + H)
-            
-            if energy_difference <= 0 or np.random.rand() < np.exp(-energy_difference / T):
+            energy_difference = (
+                2
+                * lattice[i, j]
+                * (
+                    J
+                    * (
+                        lattice[(i + 1) % L, j]
+                        + lattice[(i - 1) % L, j]
+                        + lattice[i, (j + 1) % L]
+                        + lattice[i, (j - 1) % L]
+                    )
+                    + H
+                )
+            )
+
+            if energy_difference <= 0 or np.random.rand() < np.exp(
+                -energy_difference / T
+            ):
                 lattice[i, j] *= -1
 
     # Calculate initial energy and magnetization
@@ -86,78 +103,96 @@ def ising_init(L, T, J=1.0, H=0.0, burn_in=1000, use_wolff=False):
         for j in range(L):
             spin = lattice[i, j]
             # Only sum right and down to avoid double-counting pairs
-            neighbor_sum = (lattice[(i + 1) % L, j] + lattice[i, (j + 1) % L])
+            neighbor_sum = lattice[(i + 1) % L, j] + lattice[i, (j + 1) % L]
             current_energy += -J * spin * neighbor_sum - H * spin
 
     current_magnetization = float(np.sum(lattice))
     return lattice, current_energy, current_magnetization
 
+
 @njit
-def ising_run_batch(lattice, current_energy, current_magnetization, L, T, J=1.0, H=0.0, steps=10000):
+def ising_run_batch(
+    lattice, current_energy, current_magnetization, L, T, J=1.0, H=0.0, steps=10000
+):
     """
     Run a batch of Metropolis steps for the Ising model.
     """
     energies = np.zeros(steps)
     magnetizations = np.zeros(steps)
-    
+
     for iteration in range(steps):
         i = np.random.randint(0, L)
         j = np.random.randint(0, L)
-        energy_difference = 2 * lattice[i, j] * (J * (lattice[(i + 1) % L, j] + lattice[(i - 1) % L, j] + 
-                                                 lattice[i, (j + 1) % L] + lattice[i, (j - 1) % L]) + H)
-        
+        energy_difference = (
+            2
+            * lattice[i, j]
+            * (
+                J
+                * (
+                    lattice[(i + 1) % L, j]
+                    + lattice[(i - 1) % L, j]
+                    + lattice[i, (j + 1) % L]
+                    + lattice[i, (j - 1) % L]
+                )
+                + H
+            )
+        )
+
         if energy_difference <= 0 or np.random.rand() < np.exp(-energy_difference / T):
             lattice[i, j] *= -1
             current_energy += energy_difference
             current_magnetization += 2 * lattice[i, j]
-            
+
         energies[iteration] = current_energy
         magnetizations[iteration] = abs(current_magnetization)
-        
+
     return current_energy, current_magnetization, energies, magnetizations
 
+
 @njit
-def ising_run_batch_wolff(lattice, current_energy, current_magnetization, L, T, J=1.0, H=0.0, steps=10000):
+def ising_run_batch_wolff(
+    lattice, current_energy, current_magnetization, L, T, J=1.0, H=0.0, steps=10000
+):
     """
     Run a batch of Wolff cluster steps for the Ising model.
     """
     energies = np.zeros(steps)
     magnetizations = np.zeros(steps)
-    
+
     p_add = 1.0 - np.exp(-2.0 * J / T)
-    
+
     max_size = L * L
     stack_i = np.zeros(max_size, dtype=np.int32)
     stack_j = np.zeros(max_size, dtype=np.int32)
     cluster_i = np.zeros(max_size, dtype=np.int32)
     cluster_j = np.zeros(max_size, dtype=np.int32)
     in_cluster = np.zeros((L, L), dtype=np.bool_)
-    
+
     for iteration in range(steps):
         spins_flipped = 0
         while spins_flipped < L * L:
             i = np.random.randint(0, L)
             j = np.random.randint(0, L)
-            
+
             s_old = lattice[i, j]
             s_new = -s_old
-            
+
             lattice[i, j] = s_new
             in_cluster[i, j] = True
-            
+
             stack_i[0] = i
             stack_j[0] = j
             stack_ptr = 1
-            
+
             cluster_i[0] = i
             cluster_j[0] = j
             cluster_ptr = 1
-            
+
             while stack_ptr > 0:
                 stack_ptr -= 1
                 curr_i = stack_i[stack_ptr]
                 curr_j = stack_j[stack_ptr]
-                
+
                 for k in range(4):
                     if k == 0:
                         ni, nj = (curr_i + 1) % L, curr_j
@@ -167,25 +202,25 @@ def ising_run_batch_wolff(lattice, current_energy, current_magnetization, L, T, 
                         ni, nj = curr_i, (curr_j + 1) % L
                     else:
                         ni, nj = curr_i, (curr_j - 1) % L
-                        
+
                     if lattice[ni, nj] == s_old:
                         if np.random.rand() < p_add:
                             lattice[ni, nj] = s_new
                             in_cluster[ni, nj] = True
-                            
+
                             stack_i[stack_ptr] = ni
                             stack_j[stack_ptr] = nj
                             stack_ptr += 1
-                            
+
                             cluster_i[cluster_ptr] = ni
                             cluster_j[cluster_ptr] = nj
                             cluster_ptr += 1
-                            
-            delta_E = 0.0
+
+            delta_e = 0.0
             for c in range(cluster_ptr):
                 ci = cluster_i[c]
                 cj = cluster_j[c]
-                
+
                 for k in range(4):
                     if k == 0:
                         ni, nj = (ci + 1) % L, cj
@@ -195,27 +230,38 @@ def ising_run_batch_wolff(lattice, current_energy, current_magnetization, L, T, 
                         ni, nj = ci, (cj + 1) % L
                     else:
                         ni, nj = ci, (cj - 1) % L
-                        
+
                     if not in_cluster[ni, nj]:
-                        delta_E += 2.0 * J * s_old * lattice[ni, nj]
-                        
+                        delta_e += 2.0 * J * s_old * lattice[ni, nj]
+
             for c in range(cluster_ptr):
                 in_cluster[cluster_i[c], cluster_j[c]] = False
-                
-            delta_E += cluster_ptr * 2.0 * H * s_old
-            
-            current_energy += delta_E
+
+            delta_e += cluster_ptr * 2.0 * H * s_old
+
+            current_energy += delta_e
             current_magnetization += cluster_ptr * 2 * s_new
             spins_flipped += cluster_ptr
-            
+
         energies[iteration] = current_energy
         magnetizations[iteration] = abs(current_magnetization)
-        
+
     return current_energy, current_magnetization, energies, magnetizations
 
-def ising_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk=False, method="metropolis"):
+
+def ising_wrapper(
+    L,
+    T,
+    J=1.0,
+    H=0.0,
+    burn_in=1000,
+    steps_per_core=10000,
+    plot_walk=False,
+    method="metropolis",
+):
     """
-    Run Metropolis sampling in parallel and calculate mean energy, mean magnetization, heat capacity, and magnetic susceptibility.
+    Run Metropolis sampling in parallel and calculate mean energy, mean magnetization,
+    heat capacity, and magnetic susceptibility.
     """
     start_time = time.time()
 
@@ -223,34 +269,42 @@ def ising_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_w
     rank = comm.Get_rank()
     calc = ParallelMeanVariance(size=2)
 
-    use_wolff = (method == "wolff")
-    lattice, current_energy, current_magnetization = ising_init(L, T, J, H, burn_in, use_wolff)
-    
+    use_wolff = method == "wolff"
+    lattice, current_energy, current_magnetization = ising_init(
+        L, T, J, H, burn_in, use_wolff
+    )
+
     batch_size = 10000
     all_energies = []
     all_magnetizations = []
-    
+
     calc.add_data(0, np.array([current_energy]))
     calc.add_data(1, np.array([abs(current_magnetization)]))
     if plot_walk and rank == 0:
         all_energies.append(np.array([current_energy]))
         all_magnetizations.append(np.array([abs(current_magnetization)]))
-        
+
     for start_step in range(0, steps_per_core, batch_size):
         steps = min(batch_size, steps_per_core - start_step)
-        
+
         if method == "metropolis":
-            current_energy, current_magnetization, energies, magnetizations = ising_run_batch(
-                lattice, current_energy, current_magnetization, L, T, J, H, steps)
+            current_energy, current_magnetization, energies, magnetizations = (
+                ising_run_batch(
+                    lattice, current_energy, current_magnetization, L, T, J, H, steps
+                )
+            )
         elif method == "wolff":
-            current_energy, current_magnetization, energies, magnetizations = ising_run_batch_wolff(
-                lattice, current_energy, current_magnetization, L, T, J, H, steps)
+            current_energy, current_magnetization, energies, magnetizations = (
+                ising_run_batch_wolff(
+                    lattice, current_energy, current_magnetization, L, T, J, H, steps
+                )
+            )
         else:
             raise ValueError("Unknown method")
-            
+
         calc.add_data(0, energies)
         calc.add_data(1, magnetizations)
-        
+
         if plot_walk and rank == 0:
             all_energies.append(energies)
             all_magnetizations.append(magnetizations)
@@ -275,15 +329,16 @@ def ising_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_w
 
     # Return mean and variance (in units of kB)
     if rank == 0:
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("           Ising Model Results for T = " + str(T) + " and L = " + str(L))
-        print("="*60)
+        print("=" * 60)
         print("Mean energy: ", mean[0])
         print("Mean magnetization: ", mean[1])
         print("Heat capacity: ", var[0] / (T**2))
         print("Magnetic susceptibility: ", var[1] / T)
         print("Time taken: ", time_taken)
-        print("="*60)
+        print("=" * 60)
+
 
 @njit
 def xy_init(L, T, J=1.0, H=0.0, burn_in=1000, use_wolff=False):
@@ -294,7 +349,7 @@ def xy_init(L, T, J=1.0, H=0.0, burn_in=1000, use_wolff=False):
     for i in range(L):
         for j in range(L):
             lattice[i, j] = np.random.rand() * 2 * np.pi
-    
+
     if use_wolff:
         max_size = L * L
         stack_i = np.zeros(max_size, dtype=np.int32)
@@ -302,35 +357,37 @@ def xy_init(L, T, J=1.0, H=0.0, burn_in=1000, use_wolff=False):
         cluster_i = np.zeros(max_size, dtype=np.int32)
         cluster_j = np.zeros(max_size, dtype=np.int32)
         in_cluster = np.zeros((L, L), dtype=np.bool_)
-        
+
         for _ in range(burn_in):
             spins_flipped = 0
             while spins_flipped < L * L:
                 i = np.random.randint(0, L)
                 j = np.random.randint(0, L)
-                
+
                 phi = np.random.rand() * np.pi
-                
+
                 theta_old = lattice[i, j]
                 theta_new = (2.0 * phi - theta_old) % (2.0 * np.pi)
-                
+
                 lattice[i, j] = theta_new
                 in_cluster[i, j] = True
-                
+
                 stack_i[0] = i
                 stack_j[0] = j
                 stack_ptr = 1
-                
+
                 cluster_i[0] = i
                 cluster_j[0] = j
                 cluster_ptr = 1
-                
+
                 while stack_ptr > 0:
                     stack_ptr -= 1
                     curr_i = stack_i[stack_ptr]
                     curr_j = stack_j[stack_ptr]
-                    curr_theta_old = (2.0 * phi - lattice[curr_i, curr_j]) % (2.0 * np.pi)
-                    
+                    curr_theta_old = (2.0 * phi - lattice[curr_i, curr_j]) % (
+                        2.0 * np.pi
+                    )
+
                     for k in range(4):
                         if k == 0:
                             ni, nj = (curr_i + 1) % L, curr_j
@@ -340,27 +397,29 @@ def xy_init(L, T, J=1.0, H=0.0, burn_in=1000, use_wolff=False):
                             ni, nj = curr_i, (curr_j + 1) % L
                         else:
                             ni, nj = curr_i, (curr_j - 1) % L
-                            
+
                         if not in_cluster[ni, nj]:
                             nj_theta_old = lattice[ni, nj]
-                            
+
                             r_proj_i = np.sin(curr_theta_old - phi)
                             r_proj_j = np.sin(nj_theta_old - phi)
-                            
+
                             if r_proj_i * r_proj_j > 0:
                                 p_add = 1.0 - np.exp(-2.0 * J * r_proj_i * r_proj_j / T)
                                 if np.random.rand() < p_add:
-                                    lattice[ni, nj] = (2.0 * phi - lattice[ni, nj]) % (2.0 * np.pi)
+                                    lattice[ni, nj] = (2.0 * phi - lattice[ni, nj]) % (
+                                        2.0 * np.pi
+                                    )
                                     in_cluster[ni, nj] = True
-                                    
+
                                     stack_i[stack_ptr] = ni
                                     stack_j[stack_ptr] = nj
                                     stack_ptr += 1
-                                    
+
                                     cluster_i[cluster_ptr] = ni
                                     cluster_j[cluster_ptr] = nj
                                     cluster_ptr += 1
-                                    
+
                 for c in range(cluster_ptr):
                     in_cluster[cluster_i[c], cluster_j[c]] = False
                 spins_flipped += cluster_ptr
@@ -369,125 +428,151 @@ def xy_init(L, T, J=1.0, H=0.0, burn_in=1000, use_wolff=False):
         for _ in range(burn_in):
             i = np.random.randint(0, L)
             j = np.random.randint(0, L)
-            
+
             theta_old = lattice[i, j]
             theta_new = np.random.rand() * 2 * np.pi
-            
+
             # Calculate local energy difference
             theta_up = lattice[(i - 1) % L, j]
             theta_down = lattice[(i + 1) % L, j]
             theta_left = lattice[i, (j - 1) % L]
             theta_right = lattice[i, (j + 1) % L]
-            
-            E_old_local = -J * (np.cos(theta_old - theta_up) + np.cos(theta_old - theta_down) + 
-                                np.cos(theta_old - theta_left) + np.cos(theta_old - theta_right)) - H * np.cos(theta_old)
-            E_new_local = -J * (np.cos(theta_new - theta_up) + np.cos(theta_new - theta_down) + 
-                                np.cos(theta_new - theta_left) + np.cos(theta_new - theta_right)) - H * np.cos(theta_new)
-            
-            energy_difference = E_new_local - E_old_local
-            
-            if energy_difference <= 0 or np.random.rand() < np.exp(-energy_difference / T):
+
+            e_old_local = -J * (
+                np.cos(theta_old - theta_up)
+                + np.cos(theta_old - theta_down)
+                + np.cos(theta_old - theta_left)
+                + np.cos(theta_old - theta_right)
+            ) - H * np.cos(theta_old)
+            e_new_local = -J * (
+                np.cos(theta_new - theta_up)
+                + np.cos(theta_new - theta_down)
+                + np.cos(theta_new - theta_left)
+                + np.cos(theta_new - theta_right)
+            ) - H * np.cos(theta_new)
+
+            energy_difference = e_new_local - e_old_local
+
+            if energy_difference <= 0 or np.random.rand() < np.exp(
+                -energy_difference / T
+            ):
                 lattice[i, j] = theta_new
 
     # Calculate initial energy and magnetization
     current_energy = 0.0
-    Mx = 0.0
-    My = 0.0
+    m_x = 0.0
+    m_y = 0.0
     for i in range(L):
         for j in range(L):
             theta = lattice[i, j]
             # Only sum right and down to avoid double-counting pairs
             theta_right = lattice[i, (j + 1) % L]
             theta_down = lattice[(i + 1) % L, j]
-            current_energy += -J * np.cos(theta - theta_right) - J * np.cos(theta - theta_down) - H * np.cos(theta)
-            Mx += np.cos(theta)
-            My += np.sin(theta)
+            current_energy += (
+                -J * np.cos(theta - theta_right)
+                - J * np.cos(theta - theta_down)
+                - H * np.cos(theta)
+            )
+            m_x += np.cos(theta)
+            m_y += np.sin(theta)
 
-    return lattice, current_energy, Mx, My
+    return lattice, current_energy, m_x, m_y
+
 
 @njit
-def xy_run_batch(lattice, current_energy, Mx, My, L, T, J=1.0, H=0.0, steps=10000):
+def xy_run_batch(lattice, current_energy, m_x, m_y, L, T, J=1.0, H=0.0, steps=10000):
     """
     Run a batch of Metropolis steps for the XY model.
     """
     energies = np.zeros(steps)
     magnetizations = np.zeros(steps)
-    
+
     for iteration in range(steps):
         i = np.random.randint(0, L)
         j = np.random.randint(0, L)
-        
+
         theta_old = lattice[i, j]
         theta_new = np.random.rand() * 2 * np.pi
-        
+
         # Calculate local energy difference
         theta_up = lattice[(i - 1) % L, j]
         theta_down = lattice[(i + 1) % L, j]
         theta_left = lattice[i, (j - 1) % L]
         theta_right = lattice[i, (j + 1) % L]
-        
-        E_old_local = -J * (np.cos(theta_old - theta_up) + np.cos(theta_old - theta_down) + 
-                            np.cos(theta_old - theta_left) + np.cos(theta_old - theta_right)) - H * np.cos(theta_old)
-        E_new_local = -J * (np.cos(theta_new - theta_up) + np.cos(theta_new - theta_down) + 
-                            np.cos(theta_new - theta_left) + np.cos(theta_new - theta_right)) - H * np.cos(theta_new)
-        
-        energy_difference = E_new_local - E_old_local
-        
+
+        e_old_local = -J * (
+            np.cos(theta_old - theta_up)
+            + np.cos(theta_old - theta_down)
+            + np.cos(theta_old - theta_left)
+            + np.cos(theta_old - theta_right)
+        ) - H * np.cos(theta_old)
+        e_new_local = -J * (
+            np.cos(theta_new - theta_up)
+            + np.cos(theta_new - theta_down)
+            + np.cos(theta_new - theta_left)
+            + np.cos(theta_new - theta_right)
+        ) - H * np.cos(theta_new)
+
+        energy_difference = e_new_local - e_old_local
+
         if energy_difference <= 0 or np.random.rand() < np.exp(-energy_difference / T):
             lattice[i, j] = theta_new
             current_energy += energy_difference
-            Mx = Mx - np.cos(theta_old) + np.cos(theta_new)
-            My = My - np.sin(theta_old) + np.sin(theta_new)
-            
+            m_x = m_x - np.cos(theta_old) + np.cos(theta_new)
+            m_y = m_y - np.sin(theta_old) + np.sin(theta_new)
+
         energies[iteration] = current_energy
-        magnetizations[iteration] = np.sqrt(Mx**2 + My**2)
-        
-    return current_energy, Mx, My, energies, magnetizations
+        magnetizations[iteration] = np.sqrt(m_x**2 + m_y**2)
+
+    return current_energy, m_x, m_y, energies, magnetizations
+
 
 @njit
-def xy_run_batch_wolff(lattice, current_energy, Mx, My, L, T, J=1.0, H=0.0, steps=10000):
+def xy_run_batch_wolff(
+    lattice, current_energy, m_x, m_y, L, T, J=1.0, H=0.0, steps=10000
+):
     """
     Run a batch of Wolff cluster steps for the XY model.
     """
     energies = np.zeros(steps)
     magnetizations = np.zeros(steps)
-    
+
     max_size = L * L
     stack_i = np.zeros(max_size, dtype=np.int32)
     stack_j = np.zeros(max_size, dtype=np.int32)
     cluster_i = np.zeros(max_size, dtype=np.int32)
     cluster_j = np.zeros(max_size, dtype=np.int32)
     in_cluster = np.zeros((L, L), dtype=np.bool_)
-    
+
     for iteration in range(steps):
         spins_flipped = 0
         while spins_flipped < L * L:
             i = np.random.randint(0, L)
             j = np.random.randint(0, L)
-            
+
             phi = np.random.rand() * np.pi
-            
+
             theta_old = lattice[i, j]
             theta_new = (2.0 * phi - theta_old) % (2.0 * np.pi)
-            
+
             lattice[i, j] = theta_new
             in_cluster[i, j] = True
-            
+
             stack_i[0] = i
             stack_j[0] = j
             stack_ptr = 1
-            
+
             cluster_i[0] = i
             cluster_j[0] = j
             cluster_ptr = 1
-            
+
             while stack_ptr > 0:
                 stack_ptr -= 1
                 curr_i = stack_i[stack_ptr]
                 curr_j = stack_j[stack_ptr]
-                
+
                 curr_theta_old = (2.0 * phi - lattice[curr_i, curr_j]) % (2.0 * np.pi)
-                
+
                 for k in range(4):
                     if k == 0:
                         ni, nj = (curr_i + 1) % L, curr_j
@@ -497,35 +582,37 @@ def xy_run_batch_wolff(lattice, current_energy, Mx, My, L, T, J=1.0, H=0.0, step
                         ni, nj = curr_i, (curr_j + 1) % L
                     else:
                         ni, nj = curr_i, (curr_j - 1) % L
-                        
+
                     if not in_cluster[ni, nj]:
                         nj_theta_old = lattice[ni, nj]
-                        
+
                         r_proj_i = np.sin(curr_theta_old - phi)
                         r_proj_j = np.sin(nj_theta_old - phi)
-                        
+
                         if r_proj_i * r_proj_j > 0:
                             p_add = 1.0 - np.exp(-2.0 * J * r_proj_i * r_proj_j / T)
                             if np.random.rand() < p_add:
-                                lattice[ni, nj] = (2.0 * phi - lattice[ni, nj]) % (2.0 * np.pi)
+                                lattice[ni, nj] = (2.0 * phi - lattice[ni, nj]) % (
+                                    2.0 * np.pi
+                                )
                                 in_cluster[ni, nj] = True
-                                
+
                                 stack_i[stack_ptr] = ni
                                 stack_j[stack_ptr] = nj
                                 stack_ptr += 1
-                                
+
                                 cluster_i[cluster_ptr] = ni
                                 cluster_j[cluster_ptr] = nj
                                 cluster_ptr += 1
-                                
-            delta_E = 0.0
+
+            delta_e = 0.0
             for c in range(cluster_ptr):
                 ci = cluster_i[c]
                 cj = cluster_j[c]
-                
+
                 theta_new = lattice[ci, cj]
                 theta_old = (2.0 * phi - theta_new) % (2.0 * np.pi)
-                
+
                 for k in range(4):
                     if k == 0:
                         ni, nj = (ci + 1) % L, cj
@@ -535,30 +622,31 @@ def xy_run_batch_wolff(lattice, current_energy, Mx, My, L, T, J=1.0, H=0.0, step
                         ni, nj = ci, (cj + 1) % L
                     else:
                         ni, nj = ci, (cj - 1) % L
-                        
+
                     if not in_cluster[ni, nj]:
                         nj_theta = lattice[ni, nj]
-                        E_old = -J * np.cos(theta_old - nj_theta)
-                        E_new = -J * np.cos(theta_new - nj_theta)
-                        delta_E += E_new - E_old
-                
-                E_H_old = -H * np.cos(theta_old)
-                E_H_new = -H * np.cos(theta_new)
-                delta_E += E_H_new - E_H_old
-                
-                Mx = Mx - np.cos(theta_old) + np.cos(theta_new)
-                My = My - np.sin(theta_old) + np.sin(theta_new)
-                
+                        e_old = -J * np.cos(theta_old - nj_theta)
+                        e_new = -J * np.cos(theta_new - nj_theta)
+                        delta_e += e_new - e_old
+
+                e_h_old = -H * np.cos(theta_old)
+                e_h_new = -H * np.cos(theta_new)
+                delta_e += e_h_new - e_h_old
+
+                m_x = m_x - np.cos(theta_old) + np.cos(theta_new)
+                m_y = m_y - np.sin(theta_old) + np.sin(theta_new)
+
             for c in range(cluster_ptr):
                 in_cluster[cluster_i[c], cluster_j[c]] = False
-                
-            current_energy += delta_E
+
+            current_energy += delta_e
             spins_flipped += cluster_ptr
-            
+
         energies[iteration] = current_energy
-        magnetizations[iteration] = np.sqrt(Mx**2 + My**2)
-        
-    return current_energy, Mx, My, energies, magnetizations
+        magnetizations[iteration] = np.sqrt(m_x**2 + m_y**2)
+
+    return current_energy, m_x, m_y, energies, magnetizations
+
 
 @njit
 def xy_spin_correlation(lattice, L):
@@ -567,7 +655,7 @@ def xy_spin_correlation(lattice, L):
     """
     max_r = L // 2
     correlations = np.zeros(max_r + 1)
-    
+
     for r in range(max_r + 1):
         corr_sum = 0.0
         for i in range(L):
@@ -575,12 +663,24 @@ def xy_spin_correlation(lattice, L):
                 corr_sum += np.cos(lattice[i, j] - lattice[(i + r) % L, j])
                 corr_sum += np.cos(lattice[i, j] - lattice[i, (j + r) % L])
         correlations[r] = corr_sum / (2.0 * L * L)
-        
+
     return correlations
 
-def xy_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk=False, method="metropolis", calc_correlation=False):
+
+def xy_wrapper(
+    L,
+    T,
+    J=1.0,
+    H=0.0,
+    burn_in=1000,
+    steps_per_core=10000,
+    plot_walk=False,
+    method="metropolis",
+    calc_correlation=False,
+):
     """
-    Run Metropolis sampling in parallel and calculate mean energy, mean magnetization, heat capacity, and magnetic susceptibility for the XY model.
+    Run Metropolis sampling in parallel and calculate mean energy, mean magnetization,
+    heat capacity, and magnetic susceptibility for the XY model.
     """
     start_time = time.time()
 
@@ -588,18 +688,18 @@ def xy_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk
     rank = comm.Get_rank()
     calc = ParallelMeanVariance(size=2)
 
-    use_wolff = (method == "wolff")
-    lattice, current_energy, Mx, My = xy_init(L, T, J, H, burn_in, use_wolff)
-    
+    use_wolff = method == "wolff"
+    lattice, current_energy, m_x, m_y = xy_init(L, T, J, H, burn_in, use_wolff)
+
     batch_size = 10000
     all_energies = []
     all_magnetizations = []
-    
+
     calc.add_data(0, np.array([current_energy]))
-    calc.add_data(1, np.array([np.sqrt(Mx**2 + My**2)]))
+    calc.add_data(1, np.array([np.sqrt(m_x**2 + m_y**2)]))
     if plot_walk and rank == 0:
         all_energies.append(np.array([current_energy]))
-        all_magnetizations.append(np.array([np.sqrt(Mx**2 + My**2)]))
+        all_magnetizations.append(np.array([np.sqrt(m_x**2 + m_y**2)]))
 
     if calc_correlation:
         sum_correlations = np.zeros(L // 2 + 1)
@@ -607,31 +707,37 @@ def xy_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk
 
     for start_step in range(0, steps_per_core, batch_size):
         steps = min(batch_size, steps_per_core - start_step)
-        
+
         if method == "metropolis":
-            current_energy, Mx, My, energies, magnetizations = xy_run_batch(
-                lattice, current_energy, Mx, My, L, T, J, H, steps)
+            current_energy, m_x, m_y, energies, magnetizations = xy_run_batch(
+                lattice, current_energy, m_x, m_y, L, T, J, H, steps
+            )
         elif method == "wolff":
-            current_energy, Mx, My, energies, magnetizations = xy_run_batch_wolff(
-                lattice, current_energy, Mx, My, L, T, J, H, steps)
+            current_energy, m_x, m_y, energies, magnetizations = xy_run_batch_wolff(
+                lattice, current_energy, m_x, m_y, L, T, J, H, steps
+            )
         else:
             raise ValueError("Unknown method")
-            
+
         calc.add_data(0, energies)
         calc.add_data(1, magnetizations)
-        
+
         if calc_correlation:
             sum_correlations += xy_spin_correlation(lattice, L)
             num_samples += 1
-        
+
         if plot_walk and rank == 0:
             all_energies.append(energies)
             all_magnetizations.append(magnetizations)
 
     _, mean, var = calc.collect(comm=comm, mode="gather")
-    
+
     if calc_correlation:
-        local_mean_corr = sum_correlations / num_samples if num_samples > 0 else np.zeros_like(sum_correlations)
+        local_mean_corr = (
+            sum_correlations / num_samples
+            if num_samples > 0
+            else np.zeros_like(sum_correlations)
+        )
         global_mean_corr = np.zeros_like(local_mean_corr)
         comm.Reduce(local_mean_corr, global_mean_corr, op=MPI.SUM, root=0)
 
@@ -653,15 +759,15 @@ def xy_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk
 
     # Return mean and variance (in units of kB)
     if rank == 0:
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("            XY Model Results for T = " + str(T) + " and L = " + str(L))
-        print("="*60)
+        print("=" * 60)
         print("Mean energy: ", mean[0])
         print("Mean magnetization: ", mean[1])
         print("Heat capacity: ", var[0] / (T**2))
         print("Magnetic susceptibility: ", var[1] / T)
         print("Time taken: ", time_taken)
-        
+
         if calc_correlation:
             global_mean_corr /= comm.Get_size()
             print("-" * 60)
@@ -670,30 +776,28 @@ def xy_wrapper(L, T, J=1.0, H=0.0, burn_in=1000, steps_per_core=10000, plot_walk
             print("  ----------------")
             for r in range(L // 2 + 1):
                 print(f"  {r/L:<5.3f} | {global_mean_corr[r]:.5f}")
-        print("="*60)
+        print("=" * 60)
+
 
 if __name__ == "__main__":
-    """
     # For Metropolis, 1 step is 1 spin flip attempt, so we scale by L**2 to achieve adequate sweeps.
-    for T in np.linspace(1.0, 3.0, num=50):
-        for L in [16, 64, 256, 1024]:
-            ising_wrapper(L=L, T=T, J=1.0, H=0.0, burn_in=100*(L**2), steps_per_core=1000*(L**2), plot_walk=False, method="metropolis")
+    for temp in np.linspace(1.0, 3.0, num=50):
+        for length in [16, 64, 256, 1024]:
+            ising_wrapper(L=length, T=temp, J=1.0, H=0.0, burn_in=100*(length**2),
+                          steps_per_core=1000*(length**2), plot_walk=False, method="metropolis")
 
-    for T in np.linspace(0.01, 2.0, num=50):
-        for L in [16, 64, 256, 1024]:
-            xy_wrapper(L=L, T=T, J=1.0, H=0.0, burn_in=100*(L**2), steps_per_core=1000*(L**2), plot_walk=False, method="metropolis")
-    
+    for temp in np.linspace(0.01, 2.0, num=50):
+        for length in [16, 64, 256, 1024]:
+            xy_wrapper(L=length, T=temp, J=1.0, H=0.0, burn_in=100*(length**2),
+                       steps_per_core=1000*(length**2), plot_walk=False, method="metropolis")
+
     # For Wolff a linear scaling in L is applied.
-    for T in np.linspace(1.0, 3.0, num=25):
-        for L in [16, 64, 256, 1024]:
-            ising_wrapper(L=L, T=T, J=1.0, H=0.0, burn_in=100, steps_per_core=1000, plot_walk=False, method="wolff")
+    for temp in np.linspace(1.0, 3.0, num=25):
+        for length in [16, 64, 256, 1024]:
+            ising_wrapper(L=length, T=temp, J=1.0, H=0.0, burn_in=100,
+                          steps_per_core=1000, plot_walk=False, method="wolff")
 
-    for T in np.linspace(0.01, 2.0, num=25):
-        for L in [16, 64, 256, 1024]:
-            xy_wrapper(L=L, T=T, J=1.0, H=0.0, burn_in=100, steps_per_core=1000, plot_walk=False, method="wolff")
-    """
-    for T in np.linspace(0.01, 2.0, num=25):
-        for L in [16, 64, 256, 1024]:
-            xy_wrapper(L=L, T=T, J=1.0, H=0.0, burn_in=1*(L**2)+1000, steps_per_core=10*(L**2)+10000, plot_walk=False, method="metropolis")
-
-
+    for temp in np.linspace(0.01, 2.0, num=25):
+        for length in [16, 64, 256, 1024]:
+            xy_wrapper(L=length, T=temp, J=1.0, H=0.0, burn_in=100,
+                       steps_per_core=1000, plot_walk=False, method="wolff")
